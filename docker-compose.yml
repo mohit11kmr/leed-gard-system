@@ -1,0 +1,88 @@
+x-app-env: &app-env
+  DATABASE_URL: "postgresql://postgres:postgres@db:5432/leadguard?schema=public"
+  REDIS_URL: "redis://redis:6379"
+  JWT_SECRET: "${JWT_SECRET:-dev-compose-secret-change-me}"
+  JWT_EXPIRES_IN: "${JWT_EXPIRES_IN:-1h}"
+  QUEUE_NAME: "scan-queue"
+  MAX_CONCURRENT_JOBS: "5"
+  NEXT_PUBLIC_APP_NAME: "LeadGuard"
+  NODE_ENV: "production"
+  CORS_ORIGINS: "*"
+  ADMIN_EMAIL: "${ADMIN_EMAIL:-admin@leadguard.app}"
+  ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin-password-change-me}"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: leadguard-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: leadguard
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: leadguard-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: .
+      target: build
+    depends_on:
+      db:
+        condition: service_healthy
+    environment: *app-env
+    command: sh -c "npx prisma migrate deploy && npx tsx prisma/seed.ts || true"
+    restart: "no"
+
+  app:
+    build:
+      context: .
+    container_name: leadguard-app
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment: *app-env
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: leadguard-worker
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment: *app-env
+
+volumes:
+  pgdata:
+  redisdata:

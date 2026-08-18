@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ScanStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum WebhookEvent {
+  SCAN_COMPLETED
+  SCAN_FAILED
+}
+
+enum LogLevel {
+  INFO
+  WARN
+  ERROR
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  name      String
+  apiKey    String    @unique
+  role      Role      @default(USER)
+  scans     Scan[]
+  webhooks  Webhook[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Scan {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  url          String
+  status       ScanStatus @default(PENDING)
+  result       Json?
+  score        Int?
+  totalLinks   Int?
+  workingLinks Int?
+  brokenLinks  Int?
+  error        String?
+  queueJobId   String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  logs         ScanLog[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Webhook {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  url           String
+  secret        String?
+  events        WebhookEvent[]
+  isActive      Boolean       @default(true)
+  lastTriggered DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([userId, url])
+}
+
+model ScanLog {
+  id        String   @id @default(cuid())
+  scanId    String
+  scan      Scan     @relation(fields: [scanId], references: [id])
+  level     LogLevel
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([scanId])
+  @@index([createdAt])
+}

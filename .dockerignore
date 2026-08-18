@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+coverage
+vercel
+.playwright-mcp
+*.tsbuildinfo
+leadguard-*.png
+Dockerfile*
+docker-compose*.yml
+README.md
+deepseek_markdown_*.md
