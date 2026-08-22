@@ -15,6 +15,7 @@ import { track } from "@/lib/analytics";
 import { ScanError } from "@/scanner/types";
 import { deliverWebhook } from "@/lib/webhook";
 import { performScan } from "@/scanner";
+import { installGracefulShutdown } from "@/lib/graceful-shutdown";
 
 function nextScanAt(frequency: "DAILY" | "WEEKLY"): Date {
   const ms = frequency === "DAILY" ? 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
@@ -272,7 +273,8 @@ export async function monitorSweep(): Promise<number> {
 }
 
 export async function startWorker(): Promise<void> {
-  await createScanWorker(handleScanJob, monitorSweep);
+  const worker = await createScanWorker(handleScanJob, monitorSweep);
+  installGracefulShutdown(worker);
   await registerMonitorSweeper();
   logger.info("LeadGuard worker started", {
     concurrency: process.env.MAX_CONCURRENT_JOBS || 5,
