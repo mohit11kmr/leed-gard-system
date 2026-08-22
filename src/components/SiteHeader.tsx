@@ -8,6 +8,10 @@ import { clearStoredAuth, getStoredAuth } from "@/lib/client/api";
 
 const NAV = [
   { label: "Home", href: "/" },
+  { label: "Dashboard", href: "/dashboard" },
+  { label: "History", href: "/history" },
+  { label: "Bulk scan", href: "/bulk" },
+  { label: "Settings", href: "/settings" },
   { label: "Features", href: "/features" },
   { label: "Pricing", href: "/pricing" },
   { label: "Contact", href: "/contact" },

@@ -110,7 +110,7 @@ export default function ScanTool() {
         }
       }, POLL_INTERVAL_MS);
     },
-    [persistEntry, stopPolling, toast]
+    [persistEntry, stopPolling, toast],
   );
 
   const handleScan = useCallback(
@@ -119,6 +119,7 @@ export default function ScanTool() {
       setResult(null);
       setProgress(5);
       setScanningUrl(url);
+      toast("info", "Scanning in progress...");
 
       try {
         const res = await authedFetch("/api/scan", {
@@ -146,7 +147,7 @@ export default function ScanTool() {
         toast("error", err instanceof Error ? err.message : "Scan failed to start.");
       }
     },
-    [pollScan, toast]
+    [pollScan, toast],
   );
 
   const handleHistorySelect = useCallback(
@@ -160,7 +161,7 @@ export default function ScanTool() {
       }
       setHistoryOpen(false);
     },
-    [toast]
+    [toast],
   );
 
   const handleClearHistory = useCallback(() => {
@@ -182,7 +183,11 @@ export default function ScanTool() {
         </div>
       )}
       {scanning && (
-        <ScanTerminalModal open={scanning} url={scanningUrl || "yourwebsite.com"} progress={progress} />
+        <ScanTerminalModal
+          open={scanning}
+          url={scanningUrl || "yourwebsite.com"}
+          progress={progress}
+        />
       )}
 
       {result && (
