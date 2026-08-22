@@ -1,17 +1,12 @@
 import winston from "winston";
+import { requestContext } from "./requestContext";
 
-const logLevel = process.env.LOG_LEVEL || (process.env.NODE_ENV === "production" ? "info" : "debug");
+const logLevel =
+  process.env.LOG_LEVEL || (process.env.NODE_ENV === "production" ? "info" : "debug");
 
 const transports: winston.transport[] = [
   new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.timestamp(),
-      winston.format.colorize(),
-      winston.format.printf(({ level, message, timestamp, ...meta }) => {
-        const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : "";
-        return `${timestamp} [${level}] ${message}${metaStr}`;
-      })
-    ),
+    format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
   }),
 ];
 
@@ -27,12 +22,15 @@ if (process.env.NODE_ENV === "production" && process.env.LOG_DIR) {
       filename: `${process.env.LOG_DIR}/combined.log`,
       maxsize: 5 * 1024 * 1024,
       maxFiles: 5,
-    })
+    }),
   );
 }
 
 export const logger = winston.createLogger({
   level: logLevel,
-  format: winston.format.json(),
+  format: winston.format((info) => {
+    info.correlationId = info.correlationId || requestContext.getStore()?.correlationId || "system";
+    return info;
+  })(),
   transports,
 });

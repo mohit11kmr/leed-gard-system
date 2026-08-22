@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticate, corsHeaders, handleOptions, jsonError, withCors } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { validatePublicUrl } from "@/scanner/fetchHtml";
+import { webhookInputSchema } from "@/lib/validation";
 
 const VALID_EVENTS = ["SCAN_COMPLETED", "SCAN_FAILED"] as const;
 
@@ -13,7 +14,10 @@ function parseEvents(raw: unknown): string[] | null {
   if (raw === undefined) return [...VALID_EVENTS];
   if (!Array.isArray(raw)) return null;
   const events = raw.filter((e): e is string => typeof e === "string");
-  if (events.length === 0 || !events.every((e) => (VALID_EVENTS as readonly string[]).includes(e))) {
+  if (
+    events.length === 0 ||
+    !events.every((e) => (VALID_EVENTS as readonly string[]).includes(e))
+  ) {
     return null;
   }
   return events;
@@ -26,14 +30,14 @@ export async function POST(req: NextRequest) {
   const auth = await authenticate(req);
   if (!auth.ok) return auth.response;
 
-  let body: { url?: string; secret?: string; events?: string[] };
+  let body: { url: string; secret?: string; events?: (typeof VALID_EVENTS)[number][] };
   try {
-    body = await req.json();
+    body = webhookInputSchema.parse(await req.json());
   } catch {
-    return jsonError(400, "INVALID_BODY", "Invalid JSON body.");
+    return jsonError(400, "INVALID_BODY", "Invalid webhook configuration.");
   }
 
-  const url = (body.url || "").trim();
+  const url = body.url;
   if (!/^https?:\/\//i.test(url)) {
     return jsonError(400, "INVALID_WEBHOOK_URL", "Webhook URL must start with http(s)://");
   }
@@ -45,7 +49,11 @@ export async function POST(req: NextRequest) {
   }
   const events = parseEvents(body.events);
   if (!events) {
-    return jsonError(400, "INVALID_EVENTS", "events must be a non-empty subset of SCAN_COMPLETED, SCAN_FAILED");
+    return jsonError(
+      400,
+      "INVALID_EVENTS",
+      "events must be a non-empty subset of SCAN_COMPLETED, SCAN_FAILED",
+    );
   }
 
   const existing = await prisma.webhook.findUnique({
@@ -65,10 +73,7 @@ export async function POST(req: NextRequest) {
     select: { id: true, url: true, isActive: true, events: true, createdAt: true },
   });
 
-  return withCors(
-    NextResponse.json({ success: true, webhook }, { status: 201 }),
-    req
-  );
+  return withCors(NextResponse.json({ success: true, webhook }, { status: 201 }), req);
 }
 
 export async function GET(req: NextRequest) {
@@ -91,8 +96,5 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  return withCors(
-    NextResponse.json({ success: true, webhooks }),
-    req
-  );
+  return withCors(NextResponse.json({ success: true, webhooks }), req);
 }

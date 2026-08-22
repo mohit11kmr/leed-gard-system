@@ -16,6 +16,7 @@ x-app-env: &app-env
   GEMINI_MODEL: "${GEMINI_MODEL:-gemini-3-flash-preview}"
   MONITOR_SWEEP_CRON: "${MONITOR_SWEEP_CRON:-*/5 * * * *}"
   NODE_OPTIONS: "--dns-result-order=ipv4first"
+  INTERNAL_ALERT_WEBHOOK: "${INTERNAL_ALERT_WEBHOOK:-}"
 
 services:
   db:
@@ -87,9 +88,13 @@ services:
         limits:
           memory: 512M
     depends_on:
-      migrate:
-        condition: service_completed_successfully
-    environment: *app-env
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+      NODE_OPTIONS: "--max-old-space-size=512 --dns-result-order=ipv4first"
     ports:
       - "3000:3000"
     healthcheck:
@@ -114,9 +119,13 @@ services:
         limits:
           memory: 512M
     depends_on:
-      migrate:
-        condition: service_completed_successfully
-    environment: *app-env
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+      NODE_OPTIONS: "--max-old-space-size=1024 --dns-result-order=ipv4first"
 
   backup:
     image: postgres:15-alpine

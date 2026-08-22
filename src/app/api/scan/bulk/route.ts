@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { enqueueScan } from "@/lib/queue";
 import { rateLimit } from "@/lib/rateLimit";
 import { validatePublicUrl } from "@/scanner/fetchHtml";
+import { bulkScanInputSchema } from "@/lib/validation";
 
 export async function OPTIONS(req: NextRequest) {
   return handleOptions(req) ?? new NextResponse(null, { status: 204, headers: corsHeaders(req) });
@@ -39,17 +40,13 @@ export async function POST(req: NextRequest) {
     : body && typeof body === "object" && "urls" in body
       ? (body as { urls?: unknown }).urls
       : null;
-  if (
-    !Array.isArray(urls) ||
-    urls.length === 0 ||
-    urls.length > 10 ||
-    urls.some((url) => typeof url !== "string")
-  ) {
+  const parsed = bulkScanInputSchema.safeParse({ urls });
+  if (!parsed.success) {
     return jsonError(400, "INVALID_URLS", "Provide an array of 1 to 10 URLs.");
   }
 
   const results = await Promise.all(
-    urls.map(async (rawUrl) => {
+    parsed.data.urls.map(async (rawUrl) => {
       try {
         const url = await validatePublicUrl(rawUrl);
         const scan = await prisma.scan.create({

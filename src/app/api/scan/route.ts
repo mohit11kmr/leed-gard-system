@@ -5,6 +5,7 @@ import { enqueueScan } from "@/lib/queue";
 import { track } from "@/lib/analytics";
 import { rateLimit, rateLimitKeyFor } from "@/lib/rateLimit";
 import { validatePublicUrl } from "@/scanner/fetchHtml";
+import { scanInputSchema } from "@/lib/validation";
 
 export async function OPTIONS(req: NextRequest) {
   return handleOptions(req) ?? new NextResponse(null, { status: 204, headers: corsHeaders(req) });
@@ -72,15 +73,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { url?: string; webhookUrl?: string };
+  let body: { url: string; webhookUrl?: string };
   try {
-    body = await req.json();
+    body = scanInputSchema.parse(await req.json());
   } catch {
-    return jsonError(400, "INVALID_BODY", "Invalid JSON body.");
-  }
-
-  if (!body.url) {
-    return jsonError(400, "MISSING_URL", "A URL is required.");
+    return jsonError(400, "INVALID_BODY", "Body must contain a valid URL.");
   }
 
   let normalizedUrl: string;

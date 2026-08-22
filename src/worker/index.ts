@@ -1,8 +1,15 @@
 import { LogLevel } from "@prisma/client";
-import { deliverMonitorAlert } from "@/lib/alerts";
+import { deliverMonitorAlert, sendInternalAlert } from "@/lib/alerts";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { createScanWorker, enqueueScan, registerMonitorSweeper, ScanJobData } from "@/lib/queue";
+import {
+  CLEANUP_STALLED_JOB,
+  createScanWorker,
+  enqueueScan,
+  registerMonitorSweeper,
+  removeStaleJobs,
+  ScanJobData,
+} from "@/lib/queue";
 import { validatePublicUrl } from "@/scanner/fetchHtml";
 import { track } from "@/lib/analytics";
 import { ScanError } from "@/scanner/types";
@@ -147,6 +154,13 @@ async function handleScanJob(data: ScanJobData) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown scan error";
     logger.error("scan failed", { scanId, error: message });
+    void sendInternalAlert({ event: "CRITICAL_SCAN_FAILURE", scanId, url, error: message }).catch(
+      (alertError) =>
+        logger.error("internal failure alert delivery failed", {
+          scanId,
+          error: String(alertError),
+        }),
+    );
 
     let status: "FAILED" | "BLOCKED" | "TIMEOUT" = "FAILED";
     if (err instanceof ScanError) {

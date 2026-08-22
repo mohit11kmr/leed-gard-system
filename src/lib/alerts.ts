@@ -13,6 +13,18 @@ export interface MonitorAlert {
   scanId?: string | null;
 }
 
+export async function sendInternalAlert(payload: Record<string, unknown>): Promise<void> {
+  const webhook = process.env.INTERNAL_ALERT_WEBHOOK;
+  if (!webhook) return;
+  const response = await fetch(webhook, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "User-Agent": "LeadGuard-Worker/1.0" },
+    body: JSON.stringify({ source: "leadguard", ...payload }),
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!response.ok) throw new Error(`Internal alert webhook responded HTTP ${response.status}`);
+}
+
 function alertSubject(alert: MonitorAlert): string {
   return `⚠ LeadGuard: problem detected on ${alert.url}`;
 }

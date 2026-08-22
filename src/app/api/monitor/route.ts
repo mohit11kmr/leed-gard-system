@@ -3,6 +3,7 @@ import { authenticate, corsHeaders, handleOptions, jsonError, withCors } from "@
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rateLimit";
 import { validatePublicUrl } from "@/scanner/fetchHtml";
+import { monitorInputSchema } from "@/lib/validation";
 
 const VALID_FREQUENCIES = ["DAILY", "WEEKLY"] as const;
 type Frequency = (typeof VALID_FREQUENCIES)[number];
@@ -58,15 +59,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { url?: string; frequency?: string; alertEmail?: string; alertPhone?: string };
+  let body: {
+    url: string;
+    frequency: "DAILY" | "WEEKLY";
+    alertEmail?: string;
+    alertPhone?: string;
+  };
   try {
-    body = await req.json();
+    body = monitorInputSchema.parse(await req.json());
   } catch {
-    return jsonError(400, "INVALID_BODY", "Invalid JSON body.");
+    return jsonError(400, "INVALID_BODY", "Invalid monitoring configuration.");
   }
 
-  const rawUrl = (body.url || "").trim();
-  if (!rawUrl) return jsonError(400, "MISSING_URL", "A URL is required.");
+  const rawUrl = body.url;
 
   let normalizedUrl: string;
   try {

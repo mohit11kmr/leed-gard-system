@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "./auth";
 import { prisma } from "./prisma";
+import { requestContext } from "./requestContext";
 
 export interface AuthedContext {
   userId: string;
@@ -49,8 +50,9 @@ export function handleOptions(req: NextRequest): NextResponse | null {
 }
 
 export async function authenticate(
-  req: NextRequest
+  req: NextRequest,
 ): Promise<{ ok: true; ctx: AuthedContext } | { ok: false; response: NextResponse }> {
+  requestContext.enterWith({ correlationId: req.headers.get("x-correlation-id") || "unknown" });
   const authHeader = req.headers.get("authorization") || "";
   const apiKey = req.headers.get("x-api-key");
 
@@ -68,9 +70,7 @@ export async function authenticate(
     };
   }
 
-  const token = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7)
-    : null;
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
   if (!token) {
     return {

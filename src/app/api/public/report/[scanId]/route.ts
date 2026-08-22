@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { corsHeaders, handleOptions, jsonError, withCors } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { cacheScanResult, getCachedScanResult } from "@/lib/scanCache";
 
 export async function OPTIONS(req: NextRequest) {
   return handleOptions(req) ?? new NextResponse(null, { status: 204, headers: corsHeaders(req) });
@@ -10,6 +11,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ scan
   const { scanId } = await params;
   const preflight = handleOptions(req);
   if (preflight) return preflight;
+  const cached = await getCachedScanResult(scanId).catch(() => null);
+  if (cached) return withCors(NextResponse.json(cached), req);
 
   const scan = await prisma.scan.findUnique({
     where: { id: scanId },
@@ -19,19 +22,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ scan
     return jsonError(404, "NOT_FOUND", "Report not found.");
   }
 
-  return withCors(
-    NextResponse.json({
-      success: true,
-      data: {
-        id: scan.id,
-        url: scan.url,
-        status: scan.status,
-        score: scan.score,
-        result: scan.result,
-        error: scan.error,
-        completedAt: scan.completedAt,
-      },
-    }),
-    req,
-  );
+  const response = {
+    success: true,
+    data: {
+      id: scan.id,
+      url: scan.url,
+      status: scan.status,
+      score: scan.score,
+      result: scan.result,
+      error: scan.error,
+      completedAt: scan.completedAt,
+    },
+  };
+  if (scan.status === "COMPLETED") await cacheScanResult(scanId, response).catch(() => undefined);
+  return withCors(NextResponse.json(response), req);
 }

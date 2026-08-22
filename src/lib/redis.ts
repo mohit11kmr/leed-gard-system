@@ -1,4 +1,5 @@
 import Redis from "ioredis";
+import "./env";
 
 const globalForRedis = globalThis as unknown as { redis?: Redis };
 
@@ -22,8 +23,7 @@ function createRedis(): Redis {
   return client;
 }
 
-export const redis: Redis =
-  globalForRedis.redis ?? createRedis();
+export const redis: Redis = globalForRedis.redis ?? createRedis();
 
 if (process.env.NODE_ENV !== "production") {
   globalForRedis.redis = redis;
