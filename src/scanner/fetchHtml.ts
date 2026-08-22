@@ -158,6 +158,50 @@ export async function validatePublicUrl(input: string): Promise<string> {
   return url;
 }
 
+const MAX_REDIRECTS = 5;
+const MAX_BODY_BYTES = 5 * 1024 * 1024; // 5 MB
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+async function fetchWithValidatedRedirects(
+  input: string,
+  timeoutMs: number
+): Promise<Response> {
+  let current = input;
+
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const validated = await validatePublicUrl(current);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let res: Response;
+    try {
+      res = await fetch(validated, {
+        redirect: "manual",
+        signal: controller.signal,
+        headers: {
+          "User-Agent":
+            "LeadGuard-Scanner/0.1 (website contact-link health checker; contact: mohitsikarwar123@gmail.com)",
+          Accept: "text/html,application/xhtml+xml",
+        },
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (REDIRECT_STATUSES.has(res.status)) {
+      const location = res.headers.get("location");
+      if (!location) return res;
+      current = new URL(location, validated).toString();
+      continue;
+    }
+    return res;
+  }
+
+  throw new ScanError(
+    "TOO_MANY_REDIRECTS",
+    `Too many redirects (more than ${MAX_REDIRECTS}).`
+  );
+}
+
 export async function fetchHtml(
   input: string,
   timeoutMs: number = DEFAULT_TIMEOUT_MS
@@ -167,18 +211,8 @@ export async function fetchHtml(
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(url, {
-        redirect: "follow",
-        signal: controller.signal,
-        headers: {
-          "User-Agent":
-            "LeadGuard-Scanner/0.1 (+https://leadguard.app; audit bot)",
-          Accept: "text/html,application/xhtml+xml",
-        },
-      });
+      const res = await fetchWithValidatedRedirects(url, timeoutMs);
 
       const contentType = res.headers.get("content-type") || "";
       if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
@@ -195,15 +229,27 @@ export async function fetchHtml(
         );
       }
 
+      const contentLength = parseInt(res.headers.get("content-length") || "0", 10);
+      if (contentLength > MAX_BODY_BYTES) {
+        throw new ScanError(
+          "RESPONSE_TOO_LARGE",
+          `Response exceeds ${MAX_BODY_BYTES / (1024 * 1024)} MB limit.`
+        );
+      }
+
       const html = await res.text();
-      clearTimeout(timer);
+      if (html.length > MAX_BODY_BYTES) {
+        throw new ScanError(
+          "RESPONSE_TOO_LARGE",
+          `Response exceeds ${MAX_BODY_BYTES / (1024 * 1024)} MB limit.`
+        );
+      }
       return {
         html,
         finalUrl: res.url || url,
         fetchTime: Date.now() - started,
       };
     } catch (err) {
-      clearTimeout(timer);
       lastError = err;
       if (err instanceof ScanError && err.code !== "FETCH_FAILED" && err.code !== "NOT_HTML") {
         throw err;

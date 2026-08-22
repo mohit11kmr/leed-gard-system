@@ -22,6 +22,12 @@ export function setStoredAuth(auth: StoredAuth) {
   }
 }
 
+export function clearStoredAuth() {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(AUTH_KEY);
+  }
+}
+
 export async function ensureGuestAuth(): Promise<StoredAuth> {
   const existing = getStoredAuth();
   if (existing?.apiKey) return existing;

@@ -1,0 +1,64 @@
+# Product Requirements Document (PRD)
+**Project Name:** RevenueShield (LeadGuard)
+**Category:** Micro-SaaS / Conversion Rate Optimization & Lead Protection
+**Target Market:** India & Global (Solo Businesses, Clinics, Salons, Digital Agencies, Freelancers)
+**Budget:** ₹0 Initial Cost (Serverless & Free-Tier Architecture)
+
+---
+
+## 1. Executive Summary
+RevenueShield ek automated Conversion & Lead-Loss Protection tool hai. Yeh local businesses aur agencies ki websites/social bios ko scan karke broken WhatsApp links, invalid phone numbers, broken Google review links, aur dead contact forms ko detect karta hai. Yeh technical errors ko "Financial Loss (₹)" me convert karke dikhata hai aur users ko 24/7 automated monitoring aur white-label audit reports bechta hai.
+
+---
+
+## 2. Target Audience & Personas
+1. **Solo Business Owners (Doctors, Salons, Real Estate Agents):**
+   - *Pain Point:* Website par WhatsApp button kharab hone se daily 5-10 leads miss ho rahi hain.
+   - *Goal:* 24/7 protection taaki ek bhi client na chhoote.
+2. **Digital Marketing Agencies & Freelancers:**
+   - *Pain Point:* Naye clients ko pitch karne ke liye audit tools bohot mehenge hain (Ahrefs/Semrush $100+/mo).
+   - *Goal:* 1-click white-label PDF audit reports generate karke local clients ko redesign/SEO pitch karna.
+
+---
+
+## 3. Core Value Proposition & Psychology
+- **Zero Friction Entry:** Bina kisi login ke instant 10-second scan.
+- **Loss Aversion Trigger:** "Aap har mahine ₹15,000 - ₹30,000 ke leads kho rahe hain" metrics.
+- **The Blurred Paywall (80/20 Rule):** 1 problem free me reveal hoti hai, baaki 3 critical problems blurred rehti hain (Pay to unlock).
+- **Free Watchdog Hook:** 24-hour free Telegram/WhatsApp auto-monitor dekar user ka contact number capture karna.
+
+---
+
+## 4. Feature Roadmap & Specifications
+
+### Phase 1: Free Viral Scanner (MVP)
+- **Instant URL Analyzer:** Scrapes page HTML, extracts all `wa.me`, `tel:`, `maps.google`, `instagram.com` links.
+- **Phone & Link Validator:** Checks for missing country code (+91), digits < 10, invalid URL parameters, HTTP 404/500 errors.
+- **Financial Loss Calculator:** Algorithm calculates estimated monthly loss based on standard traffic assumptions.
+- **Locked/Blurred Results Card:** Blurs 3 deep issues with a ₹29 instant unlock CTA.
+
+### Phase 2: Lead Capture & Automated Watchdog
+- **24-Hour Trial Protection:** Capture user's WhatsApp / Telegram with zero friction.
+- **Telegram Bot Alert Engine:** Triggers instant message whenever a monitored link breaks.
+- **Automated Expiring Follow-up:** 24 ghante baad alert: "Trial expired. 23 visitors came yesterday. Upgrade to Pro @ ₹199/mo."
+
+### Phase 3: Agency & Monetization Suite
+- **1-Click White-Label PDF Generator:** Client ka audit report with Agency's custom logo & branding.
+- **Razorpay Subscription Integration:** Recurring monthly automated billing.
+
+---
+
+## 5. Pricing & Monetization Strategy
+
+| Plan | Price | Target | Key Features |
+| :--- | :--- | :--- | :--- |
+| **Instant Report Unlock** | ₹29 (One-Time) | Business Owner | 1 Full PDF Report + All Blurred Issues Unlocked |
+| **Pro Shield** | ₹199 / month | Solo Business | 2 Sites 24/7 Monitored + Instant Telegram Alerts |
+| **Agency Growth** | ₹999 / month | Agencies/Freelancers | 25 Sites + Unlimited White-Label PDFs + Bulk Scanner |
+
+---
+
+## 6. Success Metrics (KPIs)
+- **Scan-to-Lead Capture Rate:** > 30%
+- **Scan-to-Paid Conversion:** > 3.5%
+- **Monthly Churn Rate:** < 8%

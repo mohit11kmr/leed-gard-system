@@ -1,0 +1,27 @@
+
+---
+
+### Component D: The Freemium & Blurred Paywall Card List
+- **Card 1 (Unlocked - Emerald Border):**
+  - Title: "WhatsApp CTA Number Malformed"
+  - Details: `wa.me/9876543210` -> Missing Country Code (`+91`). Mobile users get error on click.
+- **Card 2 (Locked - Rose Border + 80% CSS Blur Filter):**
+  - Icon: 🔒
+  - Title: "Critical Lead Form Failure (Locked)"
+  - Overlay CTA: *"Unlock all 3 critical leaks + Step-by-Step Fix for ₹29"*
+- **Card 3 (Locked - Blurred):**
+  - Title: "Google Maps Review Link Returning 404 (Locked)"
+
+---
+
+### Component E: The 24-Hour Watchdog Capture Modal
+Sticky bottom bar or exit-intent popup:
+- **Heading:** "Protect this website 24/7 for FREE"
+- **Subtext:** "Plugins break, numbers change. Get instant Telegram alerts whenever your contact links go down."
+- **Fields:** Telegram Handle / Phone Number + `[Start Free 24h Protection]` CTA button.
+
+---
+
+### Component F: Agency White-Label Export View (Pro Mode)
+- Toggle: `[ Upload Your Agency Logo ]`
+- Output: Clean A4 PDF report with custom branding, executive summary, and remediation steps.

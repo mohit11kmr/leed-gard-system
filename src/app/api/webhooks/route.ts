@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate, corsHeaders, handleOptions, jsonError, withCors } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { validatePublicUrl } from "@/scanner/fetchHtml";
 
 const VALID_EVENTS = ["SCAN_COMPLETED", "SCAN_FAILED"] as const;
 
@@ -35,6 +36,12 @@ export async function POST(req: NextRequest) {
   const url = (body.url || "").trim();
   if (!/^https?:\/\//i.test(url)) {
     return jsonError(400, "INVALID_WEBHOOK_URL", "Webhook URL must start with http(s)://");
+  }
+  try {
+    await validatePublicUrl(url);
+  } catch (err) {
+    const e = err as Error & { code?: string };
+    return jsonError(400, e.code || "INVALID_WEBHOOK_URL", e.message);
   }
   const events = parseEvents(body.events);
   if (!events) {

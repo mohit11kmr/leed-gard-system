@@ -98,6 +98,33 @@ describe("validate", () => {
     expect(bad.status).toBe("BROKEN");
   });
 
+  it("flags double +91 country code in wa.me links with a fix", () => {
+    const bad = validateWhatsAppLink({ url: "https://wa.me/91919876543210", phone: "91919876543210", status: "WORKING", isValid: true });
+    expect(bad.isValid).toBe(false);
+    expect(bad.status).toBe("BROKEN");
+    expect(bad.issue).toMatch(/Double \+91/);
+    expect(bad.suggestedFix).toBe("Change the link to https://wa.me/919876543210");
+  });
+
+  it("treats +91 followed by number starting with 91 as legit (no false positive)", () => {
+    const ok = validateWhatsAppLink({ url: "https://wa.me/919112345678", phone: "919112345678", status: "WORKING", isValid: true });
+    expect(ok.isValid).toBe(true);
+    expect(ok.issue).toBeNull();
+  });
+
+  it("flags missing country code on wa.me links", () => {
+    const bad = validateWhatsAppLink({ url: "https://wa.me/9876543210", phone: "9876543210", status: "WORKING", isValid: true });
+    expect(bad.isValid).toBe(false);
+    expect(bad.issue).toMatch(/Missing \+91 country code/);
+    expect(bad.suggestedFix).toBe("Change the link to https://wa.me/919876543210");
+  });
+
+  it("adds issue and fix text to invalid tel links", () => {
+    const bad = validatePhoneLink({ url: "tel:1234567890", number: "1234567890", status: "WORKING", isValid: true });
+    expect(bad.isValid).toBe(false);
+    expect(bad.issue).toMatch(/Invalid click-to-call/);
+  });
+
   it("validates phone links", () => {
     expect(validatePhoneLink({ url: "tel:9876543210", number: "9876543210", status: "WORKING", isValid: true }).isValid).toBe(true);
     expect(validatePhoneLink({ url: "tel:1234567890", number: "1234567890", status: "WORKING", isValid: true }).isValid).toBe(false);
@@ -119,7 +146,10 @@ describe("score", () => {
 
 describe("validatePublicUrl", () => {
   it("adds https scheme", async () => {
-    expect(await validatePublicUrl("example.com")).toBe("https://example.com");
+    const lookup = jest.spyOn(require("node:dns/promises"), "lookup");
+    lookup.mockResolvedValue({ address: "93.184.216.34", family: 4 });
+    await expect(validatePublicUrl("example.com")).resolves.toBe("https://example.com");
+    lookup.mockRestore();
   });
 
   it("rejects localhost and private IPs", async () => {
@@ -190,7 +220,12 @@ describe("performScan (mocked fetch)", () => {
 
   it("classifies links and computes score", async () => {
     const result = await performScan("https://example.com");
-    expect(result.score).toBe(100 - 25 - 20 - 15); // 40
+    expect(result.pillars.lead.score).toBe(100 - 25 - 20 - 15); // 40
+    expect(result.pillars.adshield.issueCount).toBe(2); // no meta pixel, no google tag
+    expect(result.tracking).toHaveLength(4);
+    expect(result.score).toBe(71); // weighted overall of all four pillars
+    expect(result.estimatedLoss).toBe(3 * 7500); // 22,500
+    expect(result.security?.status).toBe("CLEAN");
     expect(result.scanStats.totalLinks).toBe(8);
     expect(result.scanStats.brokenLinks).toBe(3);
     expect(result.whatsappLinks.find((l) => l.phone === "919876543210")?.status).toBe("WORKING");
@@ -202,5 +237,24 @@ describe("performScan (mocked fetch)", () => {
     expect(result.reviewLinks).toHaveLength(1);
     expect(result.socialLinks).toHaveLength(1);
     expect(result.performance.fetchTime).toBeGreaterThanOrEqual(0);
+  });
+
+  it("injects MISSING WhatsApp finding when page has zero WhatsApp CTAs", async () => {
+    const htmlNoWa = sampleHtml
+      .replace('<a href="https://wa.me/919876543210">w1</a>', "")
+      .replace('<a href="https://wa.me/12345">w2</a>', "");
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => "text/html" },
+      url: "https://example.com/",
+      text: async () => htmlNoWa,
+    } as unknown as Response);
+
+    const result = await performScan("https://example.com");
+    expect(result.whatsappLinks).toHaveLength(1);
+    expect(result.whatsappLinks[0].status).toBe("MISSING");
+    expect(result.whatsappLinks[0].issue).toMatch(/No WhatsApp/);
+    expect(result.scanStats.brokenLinks).toBe(3); // missing WA + bad tel + bad email
+    expect(result.pillars.lead.score).toBe(100 - 25 - 20 - 15);
   });
 });

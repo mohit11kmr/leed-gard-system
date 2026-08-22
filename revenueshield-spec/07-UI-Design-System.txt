@@ -1,0 +1,27 @@
+
+---
+
+# 🎨 3. `UI.md` — The High-Conversion UX & Design System
+
+```markdown
+# UI/UX Specifications & Psychological Design System
+**Design Style:** High-Conversion Cyber Dark Slate (Trust, Urgency & Financial Loss Focus)  
+**Target Viewports:** Mobile-First (60%+ users on Mobile) & Desktop Agency Dashboard
+
+---
+
+## 1. Color Tokens & Visual Psychology
+
+| Token | Hex | Tailwind Class | Psychological Trigger |
+|---|---|---|---|
+| **Background** | `#020617` | `bg-slate-950` | Professional, modern dark SaaS aesthetic |
+| **Card Surface** | `#0f172a` | `bg-slate-900` | High-contrast container for critical alerts |
+| **Danger / Loss** | `#ef4444` | `text-red-500` / `bg-red-600` | Urgency, immediate panic & loss awareness |
+| **Locked Paywall** | `#f59e0b` | `text-amber-400` / `border-amber-500/40` | Curiosity gap & premium value perception |
+| **Verified / Safe** | `#10b981` | `text-emerald-400` / `bg-emerald-500/20` | Relief & working status confirmation |
+
+---
+
+## 2. Screen Wireframes & Component Layouts
+
+### 🖥️ Screen 1: Zero-Friction Scan Hero (`/`)

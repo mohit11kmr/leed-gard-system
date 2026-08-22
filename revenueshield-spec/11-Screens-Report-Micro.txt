@@ -1,0 +1,20 @@
+
+---
+
+### 📄 Screen 3: Public Client Shareable Report (`/report/[scanId]`)
+- **Top Bar:** `Audit Report for: targetsite.com` + Live Verified Timestamp.
+- **Panic Summary Card:** Health Score + Total Lost Leads Metric.
+- **Detailed Findings Table:**
+  - WhatsApp Channels (Status, Payload, Diagnosis).
+  - Click-to-Call Anchors (Status, Format Check).
+  - Review & Map Links (Detected/Missing).
+- **Sticky Bottom Action Bar:**
+  - `[ Book Express Fix Service (₹2,999) ]`
+  - `[ Enable 24/7 Monitoring (₹199/mo) ]`
+
+---
+
+## 3. High-Converting Micro-Interactions
+1. **Live Number Count-Up:** जब स्कैन पूरा होता है, तो `Estimated Loss` काउंटर `₹0` से `₹15,000` तक 1.5 सेकंड में रोल होता है।
+2. **Lock Icon Wiggle:** जब यूजर ब्लर कार्ड पर होवर करता है, लॉक आइकन (🔒) हल्का सा शेक करता है और ₹49 बटन ग्लो करता है।
+3. **Copy Shareable Link Toast:** शेयर बटन दबाते ही ग्रीन टोस्ट: *"Shareable Client Audit Link Copied!"*

@@ -1,0 +1,8 @@
+{
+  "success": true,
+  "score": 48,
+  "estimatedLoss": 18500,
+  "freeIssue": { "type": "whatsapp", "issue": "Missing +91 country code" },
+  "lockedIssuesCount": 3,
+  "totalScanned": 7
+}

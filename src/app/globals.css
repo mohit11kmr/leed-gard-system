@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --bg: #f8fafc;
+  --bg: #ffffff;
   --fg: #0f172a;
   --card: #ffffff;
   --border: #e2e8f0;
@@ -23,8 +23,17 @@ html {
 body {
   background-color: var(--bg);
   color: var(--fg);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.02em;
 }
 
 .shimmer {

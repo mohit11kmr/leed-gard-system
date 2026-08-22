@@ -1,0 +1,102 @@
+# Product Requirements Document (PRD) — Master Edition
+**Project Name:** LeadGuard OS (RevenueShield)
+**Tagline:** *Stop Losing Customers to Broken WhatsApp & Call Links*
+**Execution Cost:** ₹0 Upfront (Serverless & Free Tier Architecture)
+**Market Validation:** 38% Indian SME Websites Fail Contact Tests (Empirical Data: 116/307 Sites Leaking Leads)
+
+---
+
+## 1. Executive Summary & Core Value Proposition
+LeadGuard OS एक ऐसा AI-पावर्ड Lead Leakage Detection & Automated Revenue Recovery प्लेटफॉर्म है जो भारतीय बिज़नेसेज और डिजिटल एजेंसियों के लिए बनाया गया है। यह केवल टूटे लिंक नहीं ढूंढता, बल्कि टेक्निकल गलतियों को **सीधे रुपये (₹) के नुकसान** में बदलकर दिखाता है और तुरंत 3-टियर मोनेटाइजेशन फनल के जरिए पेड कन्वर्जन निकालता है।
+
+---
+
+## 2. Target Personas & Value Matrix
+
+| Persona | Pain Point | Core Feature Used | Monetization Hook |
+|---|---|---|---|
+| **SME Owner (Ravi - Clinic/Salon)** | वेबसाइट से कॉल्स/चैट्स कम आ रही हैं, पर वजह नहीं पता। | 1-क्लिक लाइव ऑडिट + फाइनेंशियल लॉस मीटर | **₹2,999 - ₹4,999** (Done-For-You Audit & Express Fix) |
+| **Digital Agency (Priya - 20+ Clients)** | नए क्लाइंट्स ढूंढने और पिच करने में मुश्किल। | Agency Cold-Pitch Engine + White-Label PDF Export | **₹999 - ₹1,499/माह** (Agency Partner License) |
+| **Freelancer / Web Dev (Amit)** | क्लाइंट डिलीवरी से पहले QA और क्विक ऑडिट। | Single-scan PDF Unlock + Shareable URL | **₹49** (One-Time Micro-Report) |
+
+---
+
+## 3. The 5-Step "User Lock-in & Forced Conversion" Engine
+
+### Step 1: Zero-Friction Entry (The 3-Second Hook)
+- होमपेज पर कोई साइनअप या पासवर्ड नहीं।
+- बड़ा इनपुट बॉक्स + लाइव 3-स्टेज हैकिंग-स्टाइल प्रोग्रेस बार:
+  1. *Extracting contact nodes & DOM trees...*
+  2. *Validating Indian Tel & WhatsApp protocols...*
+  3. *Calculating monthly lead revenue loss...*
+
+### Step 2: Panic Metric & Loss Aversion (नुकसान का डर)
+- ऑडिट खत्म होते ही बड़ा लाल बैनर:
+  > **⚠️ HIGH REVENUE RISK DETECTED**  
+  > **Estimated Monthly Loss: ~₹15,000 to ₹22,500 / month**  
+  > *Score: 45/100 (4 Critical Conversion Links Failing)*
+
+### Step 3: The 80/20 Blurred Paywall Trap (Curiosity Lock)
+- **1 समस्या 100% फ्री दिखेगी:** (उदा: *"WhatsApp Link `wa.me/9191...` has Double Country Code - Chat Fails"*).
+- **बाकी 3 समस्याएं BLURRED (Locked) रहेंगी:**
+  - 🔒 *Critical Leak #2: Mobile Click-to-Call has invalid 9-digit format (Locked)*
+  - 🔒 *Critical Leak #3: Google Review shortlink returns 404 dead page (Locked)*
+- **Dual Conversion CTAs:**
+  - `[📄 Unlock Full Diagnostic PDF @ ₹49]`
+  - `[🛠️ Fix All Broken Links For Me in 24 Hrs @ ₹2,999]`
+
+### Step 4: 24-Hour Free Watchdog (Silent Lead Capture)
+- रिजल्ट के नीचे नॉन-इंट्रूसिव मॉडल/कार्ड:
+  > *"हम आपकी वेबसाइट को अगले 24 घंटे 100% फ्री मॉनिटर कर रहे हैं। अगर आधी रात को भी लिंक टूटा, तो तुरंत अलर्ट कहाँ भेजें?"*
+  > `[ Enter WhatsApp / Telegram Number ]` `[ Activate Protection ]`
+- **आउटकम:** 90%+ बिज़नेस ओनर अपना एक्टिव नंबर छोड़ देते हैं।
+
+### Step 5: Expiring Protection Ping (Automated Deal Closer)
+- 24 घंटे बाद सिस्टम से ऑटोमैटिक WhatsApp/Telegram पिंग:
+  > *"⚠️ अलर्ट: आपका 24 घंटे का फ्री ट्रायल खत्म हो गया है। कल रात आपकी साइट पर विज़िटर्स आए थे। बिना रुकावट लीड्स सुरक्षित रखने के लिए ऑटो-मॉनिटर एक्टिव करें (सिर्फ ₹6/दिन - ₹199/माह)।"*
+
+---
+
+## 4. Functional Specifications
+
+### 4.1 Core Scanner & Validation Engine
+- **Input:** कोई भी URL (`domain.com`, `https://...`, या सोशल बायो लिंक)।
+- **Validation Rules (Tuned for India):**
+  - **WhatsApp Links:** `wa.me/*`, `api.whatsapp.com/*`. चेक करेगा: डबल `9191`, मिसिंग कंट्री कोड, 10 डिजिट से कम या 13 से अधिक।
+  - **Phone Links (`tel:`):** भारतीय मोबाइल नंबर फॉर्मेट `^[6-9]\d{9}$` का अनुपालन।
+  - **Email Links (`mailto:`):** वैध सिंटैक्स और डोमेन MX फॉर्मेट।
+  - **Google Reviews / Maps:** `g.page`, `maps.google.com`, `goo.gl/maps` की मौजूदगी और लाइव स्टेटस।
+  - **Social Profiles:** Instagram, Facebook, LinkedIn, YouTube हैंडल्स की मौजूदगी।
+- **Scoring Algorithm:**
+  - बेस स्कोर: 100
+  - टूटा / गायब WhatsApp: **-25 अंक**
+  - अमान्य फोन नंबर: **-20 अंक**
+  - अमान्य ईमेल: **-15 अंक**
+  - मिनिमम स्कोर: 0
+
+### 4.2 Public Shareable Audit Page (`/report/[scanId]`)
+- बिना लॉगिन के खुलने वाला हाई-कन्वर्जन वेब पेज।
+- क्लाइंट को सीधे भेजने योग्य प्रूफ लिंक (सेल्स आउटरीच के लिए)।
+
+### 4.3 1-Click Branded PDF Export
+- क्लाइंट-रेडी PDF जिसमें हेल्थ स्कोर, लीक्स की लिस्ट, रेवेन्यू लॉस और फिक्स गाइड शामिल होगी।
+- एजेंसी प्लान में कस्टम लोगो और एजेंसी ब्रांडिंग।
+
+### 4.4 Agency Cold-Pitch Engine (B2B Multiplier)
+- एजेंसी किसी भी 10-20 वेबसाइट्स की लिस्ट डालेगी।
+- सिस्टम ऑटोमैटिकली 20 अलग-अलग PDF रिपोर्ट्स और तैयार **Hinglish Cold WhatsApp/Email Scripts** जनरेट करेगा।
+
+### 4.5 Viral Growth Widget ("Verified by LeadGuard")
+- वेबसाइट ओनर्स के लिए फ्री एम्बेडेबल बैज: *"Fast Contact Verified by LeadGuard"*.
+- बैकलिंक और ऑर्गेनिक ट्रैफिक ड्राइवर।
+
+---
+
+## 5. Monetization & Business Architecture
+
+| टियर | ऑफर | प्राइसिंग | टारगेट यूजर |
+|---|---|---|---|
+| **Micro-Audit** | सिंगल साइट फुल PDF रिपोर्ट अनलॉक | **₹49** (One-time) | DIY ओनर्स / फ्रीलांसर्स |
+| **Tier 1: Audit + Express Fix** | रिपोर्ट + 24 घंटे में सारे लिंक्स ठीक करने की सर्विस | **₹2,999 - ₹4,999** (One-time) | SME बिज़नेस ओनर्स |
+| **Tier 2: Monitoring SaaS** | 24/7 ऑटो-मॉनिटर + Telegram/WhatsApp अलर्ट्स | **₹199 - ₹299 / माह** | एक्टिव बिज़नेसेज |
+| **Tier 3: Agency License** | 25 साइट्स + अनलिमिटेड व्हाइट-लेबल PDFs + बल्क आउटरीच | **₹999 - ₹1,499 / माह** | डिजिटल मार्केटिंग एजेंसियां |

@@ -1,50 +1,41 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { FiDownload, FiShare2 } from "react-icons/fi";
+import { FiDownload, FiFileText, FiLink, FiShare2 } from "react-icons/fi";
 import { useToast } from "./Toast";
 import { ScanResult, SocialPlatform } from "@/types/scan";
 import { formatMs } from "@/lib/client/storage";
+import SummaryStat from "@/ui/data/SummaryStat";
 import { LinkRow, LinkSection } from "./LinkList";
 import ScoreRing from "./ScoreRing";
-
-const SOCIAL_ICON: Record<SocialPlatform, string> = {
-  facebook: "f",
-  instagram: "IG",
-  twitter: "𝕏",
-  linkedin: "in",
-  youtube: "▶",
-};
-
-function SummaryStat({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string | number;
-  color: string;
-}) {
-  return (
-    <div className="flex flex-col items-center rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
-      <span className="text-2xl font-bold" style={{ color }}>
-        {value}
-      </span>
-      <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
-        {label}
-      </span>
-    </div>
-  );
-}
+import LossCalculator from "./LossCalculator";
+import SecurityPanel from "./SecurityPanel";
+import WatchdogForm from "./WatchdogForm";
+import CriticalFindings from "./CriticalFindings";
+import PillarCards from "./PillarCards";
+import StatusBadge from "@/ui/data/StatusBadge";
 
 export default function ResultsCard({
   result,
   url,
+  scanId,
 }: {
   result: ScanResult;
   url: string;
+  scanId?: string | null;
 }) {
   const { toast } = useToast();
+  const reportLink = scanId ? `${window.location.origin}/report/${scanId}` : null;
+
+  async function copyReportLink() {
+    if (!reportLink) return;
+    try {
+      await navigator.clipboard.writeText(reportLink);
+      toast("success", "Public report link copied — share it with anyone");
+    } catch {
+      toast("error", "Copy failed");
+    }
+  }
 
   async function exportJson() {
     const blob = new Blob([JSON.stringify({ url, ...result }, null, 2)], {
@@ -56,6 +47,16 @@ export default function ResultsCard({
     link.click();
     URL.revokeObjectURL(link.href);
     toast("success", "Report exported as JSON");
+  }
+
+  async function exportPdf() {
+    try {
+      const { downloadAuditPdf } = await import("@/lib/client/pdfGenerator");
+      await downloadAuditPdf(url, result);
+      toast("success", "PDF audit report downloaded");
+    } catch {
+      toast("error", "PDF export failed");
+    }
   }
 
   async function shareReport() {
@@ -89,6 +90,12 @@ export default function ResultsCard({
               {url}
             </p>
           </div>
+          {result.scanStats.brokenLinks > 0 && (
+            <LossCalculator
+              brokenLinks={result.scanStats.brokenLinks}
+              totalLinks={result.scanStats.totalLinks}
+            />
+          )}
           <div className="grid grid-cols-3 gap-3">
             <SummaryStat label="Total" value={result.scanStats.totalLinks} color="#6366f1" />
             <SummaryStat label="Working" value={result.scanStats.workingLinks} color="#10b981" />
@@ -107,6 +114,14 @@ export default function ResultsCard({
           <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
             <button
               type="button"
+              onClick={exportPdf}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-primary-500"
+            >
+              <FiFileText className="h-4 w-4" />
+              Download PDF
+            </button>
+            <button
+              type="button"
               onClick={exportJson}
               className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-primary-500 hover:text-primary-600 dark:border-slate-600 dark:text-slate-300"
             >
@@ -121,32 +136,49 @@ export default function ResultsCard({
               <FiShare2 className="h-4 w-4" />
               Share
             </button>
+            {reportLink && (
+              <button
+                type="button"
+                onClick={copyReportLink}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-primary-500"
+              >
+                <FiLink className="h-4 w-4" />
+                Copy public report link
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="grid gap-6 p-6 lg:grid-cols-2">
+      <div className="space-y-6 p-6">
+        <PillarCards pillars={result.pillars} />
+        <CriticalFindings result={result} />
+        <SecurityPanel security={result.security} />
+        <WatchdogForm scanId={scanId} />
+      </div>
+
+      <div className="grid gap-6 p-6 pt-0 lg:grid-cols-2">
         <LinkSection title="WhatsApp" count={result.whatsappLinks.length} icon={<span aria-hidden>🟢</span>}>
           {result.whatsappLinks.map((l, i) => (
-            <LinkRow key={i} url={l.url} display={l.url} status={l.status} sub={l.phone ? `Phone: ${l.phone}` : undefined} />
+            <LinkRow key={i} url={l.url} display={l.url || "(no WhatsApp CTA found)"} status={l.status} sub={l.phone ? `Phone: ${l.phone}` : undefined} issue={l.issue} fix={l.suggestedFix} />
           ))}
         </LinkSection>
 
         <LinkSection title="Phone" count={result.phoneLinks.length} icon={<span aria-hidden>📞</span>}>
           {result.phoneLinks.map((l, i) => (
-            <LinkRow key={i} url={l.url} display={l.url} status={l.status} sub={l.number ? `Number: ${l.number}` : undefined} />
+            <LinkRow key={i} url={l.url} display={l.url} status={l.status} sub={l.number ? `Number: ${l.number}` : undefined} issue={l.issue} fix={l.suggestedFix} />
           ))}
         </LinkSection>
 
         <LinkSection title="Email" count={result.emailLinks.length} icon={<span aria-hidden>✉️</span>}>
           {result.emailLinks.map((l, i) => (
-            <LinkRow key={i} url={l.url} display={l.email} status={l.status} />
+            <LinkRow key={i} url={l.url} display={l.email} status={l.status} issue={l.issue} fix={l.suggestedFix} />
           ))}
         </LinkSection>
 
         <LinkSection title="Review" count={result.reviewLinks.length} icon={<span aria-hidden>⭐</span>}>
           {result.reviewLinks.map((l, i) => (
-            <LinkRow key={i} url={l.url} display={l.url} badge={<StatusBadgeInline platform={l.platform} />} />
+            <LinkRow key={i} url={l.url} display={l.url} badge={<StatusBadge platform={l.platform} />} />
           ))}
         </LinkSection>
 
@@ -159,7 +191,7 @@ export default function ResultsCard({
                 display={l.url}
                 badge={
                   <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                    {SOCIAL_ICON[l.platform]}
+                    {l.platform ? l.platform[0]?.toUpperCase() : "🌐"}
                   </span>
                 }
                 sub={l.platform}
@@ -169,13 +201,5 @@ export default function ResultsCard({
         </div>
       </div>
     </motion.div>
-  );
-}
-
-function StatusBadgeInline({ platform }: { platform: string }) {
-  return (
-    <span className="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-700 dark:bg-sky-500/15 dark:text-sky-400">
-      {platform}
-    </span>
   );
 }

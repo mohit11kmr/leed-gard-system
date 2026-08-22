@@ -1,250 +1,147 @@
-"use client";
+import { FiArrowRight, FiCheck, FiShield } from "react-icons/fi";
+import ScanTool from "@/components/ScanTool";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { FiClock, FiShield } from "react-icons/fi";
-import { HistoryEntry, ScanResult, ScanStatusResponse } from "@/types/scan";
-import { addToHistory, getHistory } from "@/lib/client/storage";
-import { authedFetch } from "@/lib/client/api";
-import { ToastProvider, useToast } from "@/components/Toast";
-import ScanForm from "@/components/ScanForm";
-import ProgressBar from "@/components/ProgressBar";
-import ResultsCard from "@/components/ResultsCard";
-import HistoryPanel from "@/components/HistoryPanel";
-import ThemeToggle from "@/components/ThemeToggle";
+const STATS = [
+  { v: "307+", l: "real websites scanned" },
+  { v: "116", l: "found losing leads (38%)" },
+  { v: "~5s", l: "average scan time" },
+];
 
-const POLL_INTERVAL_MS = 2000;
-const MAX_POLLS = 30;
+const STEPS = [
+  {
+    n: "01",
+    title: "Paste your URL",
+    desc: "Enter any public website. No signup, no install.",
+  },
+  {
+    n: "02",
+    title: "We crawl & validate",
+    desc: "LeadGuard finds every WhatsApp, phone, email and review link and checks it.",
+  },
+  {
+    n: "03",
+    title: "Get your score & fixes",
+    desc: "A clear 0–100 health score with each broken link and its exact fix.",
+  },
+];
 
-function Home() {
-  const { toast } = useToast();
-  const [scanning, setScanning] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [result, setResult] = useState<ScanResult | null>(null);
-  const [resultUrl, setResultUrl] = useState("");
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+const POINTS = [
+  "WhatsApp button health (wa.me, api.whatsapp.com)",
+  "Indian phone numbers — catches doubled country codes",
+  "Email (mailto) and review/social links",
+  "Actionable report: every broken link + the fix",
+];
 
-  useEffect(() => {
-    setHistory(getHistory());
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, []);
-
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }, []);
-
-  const persistEntry = useCallback(
-    (entry: HistoryEntry) => {
-      setHistory(addToHistory(entry));
-    },
-    []
-  );
-
-  const pollScan = useCallback(
-    (scanId: string) => {
-      stopPolling();
-      let polls = 0;
-
-      pollRef.current = setInterval(async () => {
-        polls += 1;
-        setProgress(Math.min(90, 10 + (polls / MAX_POLLS) * 80));
-
-        try {
-          const res = await authedFetch(`/api/scan/${scanId}`, { cache: "no-store" });
-          if (!res.ok) {
-            throw new Error("Failed to fetch scan status.");
-          }
-          const data = (await res.json()) as { data: ScanStatusResponse };
-          const scan = data.data;
-
-          if (scan.status === "COMPLETED" && scan.result) {
-            stopPolling();
-            setProgress(100);
-            setResult(scan.result);
-            setResultUrl(scan.url);
-            persistEntry({
-              id: scan.id,
-              url: scan.url,
-              score: scan.score,
-              status: "COMPLETED",
-              error: null,
-              result: scan.result,
-              scannedAt: new Date().toISOString(),
-            });
-            setScanning(false);
-            toast("success", `Scan complete · score ${scan.score}/100`);
-          } else if (scan.status === "FAILED") {
-            stopPolling();
-            setProgress(100);
-            setResult(null);
-            persistEntry({
-              id: scan.id,
-              url: scan.url,
-              score: null,
-              status: "FAILED",
-              error: scan.error,
-              result: null,
-              scannedAt: new Date().toISOString(),
-            });
-            setScanning(false);
-            toast("error", scan.error || "Scan failed");
-          }
-        } catch {
-          if (polls >= MAX_POLLS) {
-            stopPolling();
-            setScanning(false);
-            toast("error", "Timed out waiting for the scan.");
-          }
-        }
-      }, POLL_INTERVAL_MS);
-    },
-    [persistEntry, stopPolling, toast]
-  );
-
-  const handleScan = useCallback(
-    async (url: string) => {
-      setScanning(true);
-      setResult(null);
-      setProgress(5);
-
-      try {
-        const res = await authedFetch("/api/scan", {
-          method: "POST",
-          body: JSON.stringify({ url }),
-        });
-
-        if (res.status === 429) {
-          toast("error", "Rate limit reached. Try again in a minute.");
-          setScanning(false);
-          setProgress(0);
-          return;
-        }
-
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          throw new Error(data.error?.message || "Failed to start scan.");
-        }
-
-        setProgress(10);
-        pollScan(data.scanId as string);
-      } catch (err) {
-        setScanning(false);
-        setProgress(0);
-        toast("error", err instanceof Error ? err.message : "Scan failed to start.");
-      }
-    },
-    [pollScan, toast]
-  );
-
-  const handleHistorySelect = useCallback(
-    (entry: HistoryEntry) => {
-      if (entry.result) {
-        setResult(entry.result);
-        setResultUrl(entry.url);
-      } else {
-        toast("info", entry.error || "This scan has no stored result.");
-      }
-      setHistoryOpen(false);
-    },
-    [toast]
-  );
-
-  const clearHistory = useCallback(() => {
-    setHistory(getHistory());
-    window.localStorage.removeItem("leadguard:history");
-    setHistory([]);
-    toast("info", "History cleared");
-  }, [toast]);
-
+export default function HomePage() {
   return (
-    <main className="min-h-screen">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-600 text-lg font-bold text-white">
-              LG
-            </span>
-            <div>
-              <p className="text-sm font-bold leading-tight text-slate-800 dark:text-slate-100">
-                LeadGuard Scanner
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Check if your WhatsApp &amp; call links are broken
-              </p>
-            </div>
+    <>
+      <section id="top" className="relative overflow-hidden bg-gradient-to-b from-navy-950 via-navy-900 to-navy-950">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_60%_at_50%_0%,rgba(16,185,129,0.14),transparent)]" />
+        <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-16 text-center sm:pt-20">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+            <FiShield className="h-3.5 w-3.5" />
+            Free website link health check
+          </span>
+
+          <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-extrabold leading-[1.08] tracking-tight text-white sm:text-5xl">
+            Is your website silently losing customers?
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-300">
+            A broken WhatsApp button or phone link turns ready buyers away every
+            single day. LeadGuard finds them in seconds — and shows you exactly
+            how to fix them.
+          </p>
+
+          <div className="mx-auto mt-10 max-w-2xl">
+            <ScanTool />
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setHistoryOpen((o) => !o)}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-primary-400 hover:text-primary-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-            >
-              <FiClock className="h-4 w-4" />
-              History
-            </button>
-            <ThemeToggle />
+
+          <div className="mx-auto mt-14 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-3">
+            {STATS.map((s) => (
+              <div
+                key={s.l}
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 backdrop-blur"
+              >
+                <p className="text-2xl font-extrabold text-emerald-400">{s.v}</p>
+                <p className="mt-0.5 text-xs font-medium text-slate-300">{s.l}</p>
+              </div>
+            ))}
           </div>
         </div>
-      </header>
+      </section>
 
-      <section className="mx-auto max-w-5xl px-4 pt-12 pb-4">
+      <section className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
-            Is your website losing leads?
-          </h1>
-          <p className="mt-3 text-base text-slate-500 dark:text-slate-400">
-            LeadGuard crawls your site and checks WhatsApp buttons, phone numbers,
-            review links and emails — giving you a clear health score in seconds.
+          <p className="text-sm font-bold uppercase tracking-wider text-primary-600">
+            What it checks
+          </p>
+          <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl dark:text-white">
+            Every contact link, verified
+          </h2>
+        </div>
+        <ul className="mx-auto mt-8 max-w-xl space-y-3">
+          {POINTS.map((p) => (
+            <li key={p} className="flex items-start gap-3 text-slate-700 dark:text-slate-200">
+              <FiCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary-600" />
+              <span>{p}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="bg-slate-50 py-16 sm:py-20 dark:bg-slate-900/40">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-sm font-bold uppercase tracking-wider text-primary-600">
+              How it works
+            </p>
+            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl dark:text-white">
+              From URL to report in three steps
+            </h2>
+          </div>
+          <div className="mt-10 grid gap-6 md:grid-cols-3">
+            {STEPS.map((s) => (
+              <div
+                key={s.n}
+                className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
+              >
+                <span className="text-4xl font-extrabold text-primary-100 dark:text-primary-900">
+                  {s.n}
+                </span>
+                <h3 className="mt-3 font-bold text-slate-900 dark:text-white">{s.title}</h3>
+                <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-600 to-primary-800 px-6 py-14 text-center text-white">
+          <h2 className="mx-auto max-w-2xl text-3xl font-extrabold tracking-tight sm:text-4xl">
+            Find out what your website is really missing
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-primary-100">
+            One scan tells you exactly which contact links are costing you
+            customers. It takes five seconds and it&apos;s free.
+          </p>
+          <a
+            href="#top"
+            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-primary-700 shadow-lg transition hover:bg-primary-50"
+          >
+            Check my website free
+            <FiArrowRight className="h-4 w-4" />
+          </a>
+          <p className="mt-4">
+            <a
+              href="/report/cmt3e69mg00057gzv7o4grtbe"
+              className="text-sm font-medium text-primary-200 underline-offset-4 transition hover:text-white hover:underline"
+            >
+              or see an example report →
+            </a>
           </p>
         </div>
       </section>
-
-      <section className="mx-auto max-w-3xl px-4 py-4">
-        <ScanForm scanning={scanning} onScan={handleScan} />
-        <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-slate-400">
-          <FiShield className="h-3.5 w-3.5" />
-          Free for any public website. No signup required.
-        </p>
-      </section>
-
-      <section className="mx-auto max-w-5xl space-y-4 px-4 py-6">
-        {scanning && (
-          <div className="mx-auto max-w-xl">
-            <ProgressBar progress={progress} />
-          </div>
-        )}
-
-        {result && <ResultsCard result={result} url={resultUrl} />}
-
-        <HistoryPanel
-          open={historyOpen}
-          onClose={() => setHistoryOpen(false)}
-          history={history}
-          onClear={clearHistory}
-          onSelect={handleHistorySelect}
-        />
-      </section>
-
-      <footer className="mx-auto max-w-5xl px-4 py-8 text-center text-xs text-slate-400">
-        LeadGuard Scanner · Free link health audits for small businesses
-      </footer>
-    </main>
-  );
-}
-
-export default function Page() {
-  return (
-    <ToastProvider>
-      <Home />
-    </ToastProvider>
+    </>
   );
 }

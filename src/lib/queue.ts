@@ -27,8 +27,29 @@ export async function enqueueScan(scanId: string, url: string): Promise<string> 
   return job.id ?? scanId;
 }
 
-export async function createScanWorker(handler: (data: ScanJobData) => Promise<void>) {
+export const MONITOR_SWEEP_JOB = "monitor-sweep";
+
+export async function registerMonitorSweeper(): Promise<void> {
+  const pattern = process.env.MONITOR_SWEEP_CRON || "*/15 * * * *";
+  await scanQueue.add(
+    MONITOR_SWEEP_JOB,
+    {} as ScanJobData,
+    {
+      jobId: "monitor-sweeper",
+      repeat: { pattern },
+    }
+  );
+}
+
+export async function createScanWorker(
+  handler: (data: ScanJobData) => Promise<void>,
+  onSweep?: () => Promise<number>
+) {
   const worker = new Worker<ScanJobData>(QUEUE_NAME, async (job) => {
+    if (job.name === MONITOR_SWEEP_JOB) {
+      if (onSweep) await onSweep();
+      return;
+    }
     await handler(job.data);
   }, {
     connection: redis,

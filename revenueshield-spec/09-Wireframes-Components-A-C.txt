@@ -1,0 +1,25 @@
+
+---
+
+## 2. Component Wireframes & Specifications
+
+### Component A: Hero Search Section
+- **Badge:** "⚡ 100% Free Instant Lead-Loss Scanner"
+- **Headline:** "Find Out How Many Customers Your Website is Losing Every Day"
+- **Input Form:** 
+  - Wide dark input box with animated glowing border.
+  - Single button: "Scan for Lost Revenue →"
+
+---
+
+### Component B: Real-Time Scanning Loader
+When user clicks "Scan", do not show a boring spinner. Show an engaging sequential terminal log:
+- `[✓] Fetching HTML & Meta Tags...`
+- `[✓] Validating WhatsApp CTA & Country Codes...`
+- `[!] Scanning Contact Forms & Endpoints...`
+- `[!] Calculating Estimated Monthly Lead Loss...`
+*(Total duration: ~5 to 8 seconds to build suspense and curiosity).*
+
+---
+
+### Component C: Panic Metric Banner (The Hook)

@@ -1,0 +1,9 @@
+# Technical Design Document (TTD)
+**Tech Stack:** Next.js 14 (App Router) + Supabase + Tailwind CSS + Telegram Bot API
+**Hosting:** Vercel (Free Tier)
+**Database:** Supabase PostgreSQL (Free Tier)
+**Total Infrastructure Cost:** ₹0 / month
+
+---
+
+## 1. System Architecture

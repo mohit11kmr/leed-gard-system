@@ -1,0 +1,9 @@
+# Technical Design Document (TDD) — Master Edition
+**Stack:** Next.js 14 (App Router) + Tailwind CSS + Neon/Supabase PostgreSQL + Telegram Bot API  
+**Hosting & Compute:** Vercel Serverless (₹0 Tier)  
+**Database:** PostgreSQL Free Tier (Neon / Supabase)  
+**Scheduler & Queue:** cron-job.org / Upstash Redis Free Tier (₹0)
+
+---
+
+## 1. System Architecture Diagram

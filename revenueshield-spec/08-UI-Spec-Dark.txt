@@ -1,0 +1,18 @@
+
+---
+
+# 🎨 3. `ui.md` (UI/UX Specification Document)
+
+```markdown
+# UI/UX Specification Document (UI.md)
+**Design System:** Dark Mode First (Modern B2B Cyber-Security Aesthetic)
+**Color Palette:**
+- Background: Slate-950 (`#020617`) & Slate-900 (`#0f172a`)
+- Accent / Safe: Emerald-400 (`#34d399`)
+- Panic / Danger: Rose-500 (`#f43f5e`)
+- Warning / Attention: Amber-400 (`#fbbf24`)
+- Typography: Inter / Plus Jakarta Sans
+
+---
+
+## 1. Page Flow Map

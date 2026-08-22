@@ -106,11 +106,17 @@ Browser ──► Next.js API Routes
 |--------|-----------------------|------|-----------------------------------|
 | POST   | `/api/auth/register`  | No   | Register a user                   |
 | POST   | `/api/auth/login`     | No   | Login → JWT                       |
-| POST   | `/api/auth/guest`     | No   | Create a guest session            |
+| POST   | `/api/auth/guest`     | No   | Create a guest session (IP rate-limited) |
+| GET    | `/api/auth/me`        | Yes  | Current user profile              |
 | POST   | `/api/scan`           | Yes  | Start scan → `scanId`             |
 | GET    | `/api/scan/[id]`      | Yes  | Poll scan status / results        |
+| GET    | `/api/scan`           | Yes  | List your recent scans            |
 | POST   | `/api/webhooks`       | Yes  | Register a webhook                |
 | GET    | `/api/webhooks`       | Yes  | List webhooks                     |
+| DELETE | `/api/webhooks/[id]`  | Yes  | Delete a webhook                  |
+| GET    | `/api/monitor`        | Yes  | List monitored sites              |
+| POST   | `/api/monitor`        | Yes  | Add/update a monitored site       |
+| DELETE | `/api/monitor/[id]`   | Yes  | Stop monitoring a site            |
 | GET    | `/api/admin/stats`    | ADMIN| Global usage statistics          |
 
 Authenticate with `Authorization: Bearer <jwt>` or `x-api-key: <apiKey>`.
@@ -133,6 +139,25 @@ Then poll `GET /api/scan/[scanId]` every 2s until `status === "COMPLETED"`.
 Webhooks receive a POST on scan completion/failure with HMAC-SHA256 signature in
 `X-LeadGuard-Signature` when a secret is configured. Retries up to 3 times with
 exponential backoff.
+
+## Monitoring (24/7)
+
+Add sites from the dashboard (`/dashboard`) or `POST /api/monitor`. The worker
+runs a repeat BullMQ sweeper (`MONITOR_SWEEP_CRON`, default every 15 min) that
+re-scans due sites (DAILY/WEEKLY). When a health score drops, broken links
+increase, or the site becomes unreachable, an alert is delivered via:
+
+- **Email** — configure `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS`
+  and the per-site `alertEmail`.
+- **Alert webhook** — set the per-site `alertWebhook` to any HTTPS endpoint
+  (WhatsApp BSP, Slack, CallMeBot, n8n…). Payload includes an
+  `X-LeadGuard-Signature` HMAC when `JWT_SECRET`-independent secrets are added.
+
+## Security notes
+
+- SSRF protection: localhost/private ranges blocked for scan targets,
+  redirect hops are re-validated, responses capped at 5 MB.
+- Webhook/alert URLs are validated against private hosts at registration time.
 
 ## Scanner rules
 

@@ -2,11 +2,40 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticate, corsHeaders, handleOptions, jsonError, withCors } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { enqueueScan } from "@/lib/queue";
+import { track } from "@/lib/analytics";
 import { rateLimit } from "@/lib/rateLimit";
 import { validatePublicUrl } from "@/scanner/fetchHtml";
 
 export async function OPTIONS(req: NextRequest) {
   return handleOptions(req) ?? new NextResponse(null, { status: 204, headers: corsHeaders(req) });
+}
+
+export async function GET(req: NextRequest) {
+  const preflight = handleOptions(req);
+  if (preflight) return preflight;
+
+  const auth = await authenticate(req);
+  if (!auth.ok) return auth.response;
+
+  const scans = await prisma.scan.findMany({
+    where: { userId: auth.ctx.userId },
+    select: {
+      id: true,
+      url: true,
+      status: true,
+      score: true,
+      totalLinks: true,
+      workingLinks: true,
+      brokenLinks: true,
+      error: true,
+      createdAt: true,
+      completedAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  return withCors(NextResponse.json({ success: true, scans }), req);
 }
 
 export async function POST(req: NextRequest) {
@@ -48,6 +77,15 @@ export async function POST(req: NextRequest) {
 
   let webhookId: string | null = null;
   if (body.webhookUrl) {
+    if (!/^https?:\/\//i.test(body.webhookUrl)) {
+      return jsonError(400, "INVALID_WEBHOOK", "Provided webhookUrl is invalid.");
+    }
+    try {
+      await validatePublicUrl(body.webhookUrl);
+    } catch (err) {
+      const e = err as Error & { code?: string };
+      return jsonError(400, e.code || "INVALID_WEBHOOK", e.message);
+    }
     try {
       await prisma.webhook.upsert({
         where: { userId_url: { userId: auth.ctx.userId, url: body.webhookUrl } },
@@ -78,6 +116,11 @@ export async function POST(req: NextRequest) {
     await prisma.scan.update({
       where: { id: scan.id },
       data: { queueJobId: jobId ?? null },
+    });
+    void track("scan_started", {
+      userId: auth.ctx.userId,
+      url: normalizedUrl,
+      meta: { scanId: scan.id },
     });
   } catch {
     await prisma.scan.update({
