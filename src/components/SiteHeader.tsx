@@ -20,11 +20,18 @@ const NAV = [
 export default function SiteHeader() {
   const [authed, setAuthed] = useState(false);
   const [guest, setGuest] = useState(false);
+  const [healthy, setHealthy] = useState<boolean | null>(null);
 
   useEffect(() => {
     const auth = getStoredAuth();
     setAuthed(Boolean(auth?.apiKey));
     setGuest(Boolean(auth?.guest));
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/health", { cache: "no-store" })
+      .then((response) => setHealthy(response.ok))
+      .catch(() => setHealthy(false));
   }, []);
 
   function handleLogout() {
@@ -59,6 +66,15 @@ export default function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <span
+            className="hidden items-center gap-1.5 text-xs font-semibold text-slate-500 sm:flex dark:text-slate-400"
+            title={healthy === false ? "System degraded" : "System online"}
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${healthy === false ? "bg-rose-500" : healthy === true ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}
+            />
+            {healthy === false ? "System degraded" : "System online"}
+          </span>
           <ThemeToggle />
           {!authed ? (
             <Link

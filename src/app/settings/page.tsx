@@ -1,9 +1,11 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { FiArrowLeft, FiBell, FiMail, FiMessageSquare, FiSave } from "react-icons/fi";
 import { authedFetch } from "@/lib/client/api";
+import { useToast } from "@/components/Toast";
 
 export default function SettingsPage() {
   const [url, setUrl] = useState("");
@@ -12,28 +14,65 @@ export default function SettingsPage() {
   const [frequency, setFrequency] = useState("DAILY");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [emailEnabled, setEmailEnabled] = useState(true);
+  const [smsEnabled, setSmsEnabled] = useState(false);
+  const [webhookEnabled, setWebhookEnabled] = useState(false);
+  const { toast } = useToast();
+  useEffect(() => {
+    authedFetch("/api/settings", { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok || !data.success)
+          throw new Error(data.error?.message || "Could not load settings.");
+        setEmail(data.settings?.email || "");
+        setPhone(data.settings?.phone || "");
+      })
+      .catch((error) =>
+        toast("error", error instanceof Error ? error.message : "Could not load settings."),
+      );
+  }, [toast]);
   async function save(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setMessage("");
     try {
-      const response = await authedFetch("/api/monitor", {
-        method: "POST",
+      const response = await authedFetch("/api/settings", {
+        method: "PUT",
         body: JSON.stringify({
           url,
           alertEmail: email || undefined,
           alertPhone: phone || undefined,
           frequency,
+          emailEnabled,
+          smsEnabled,
+          webhookEnabled,
         }),
       });
       const data = await response.json();
-      setMessage(
-        response.ok ? "Saved successfully." : data.error?.message || "Could not save settings.",
-      );
-    } catch {
-      setMessage("Could not save settings.");
+      if (!response.ok || !data.success)
+        throw new Error(data.error?.message || "Could not save settings.");
+      setMessage("Saved successfully.");
+      toast("success", "Saved successfully.");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Could not save settings.";
+      setMessage(errorMessage);
+      toast("error", errorMessage);
     } finally {
       setBusy(false);
+    }
+  }
+  async function sendTestAlert() {
+    try {
+      const response = await authedFetch("/api/monitor/test", {
+        method: "POST",
+        body: JSON.stringify({ url }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success)
+        throw new Error(data.error?.message || "Could not send test alert.");
+      toast("success", "Test alert sent.");
+    } catch (error) {
+      toast("error", error instanceof Error ? error.message : "Could not send test alert.");
     }
   }
   return (
@@ -102,12 +141,46 @@ export default function SettingsPage() {
             />
           </div>
         </section>
-        <button
-          disabled={busy}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
-        >
-          <FiSave /> {busy ? "Saving..." : "Save settings"}
-        </button>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <p className="text-sm font-bold text-slate-800 dark:text-white">Alert channels</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {[
+              ["Email", emailEnabled, setEmailEnabled],
+              ["SMS", smsEnabled, setSmsEnabled],
+              ["Webhook", webhookEnabled, setWebhookEnabled],
+            ].map(([label, enabled, setEnabled]) => (
+              <label
+                key={label as string}
+                className="flex cursor-pointer items-center justify-between rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-700"
+              >
+                <span>{label as string}</span>
+                <input
+                  type="checkbox"
+                  checked={enabled as boolean}
+                  onChange={(event) =>
+                    (setEnabled as (value: boolean) => void)(event.target.checked)
+                  }
+                  className="h-4 w-4 accent-primary-600"
+                />
+              </label>
+            ))}
+          </div>
+        </section>
+        <div className="flex flex-wrap gap-3">
+          <button
+            disabled={busy}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+          >
+            <FiSave /> {busy ? "Saving..." : "Save settings"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void sendTestAlert()}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-bold dark:border-slate-700"
+          >
+            <FiBell /> Send Test Alert
+          </button>
+        </div>
         {message && (
           <p
             className={`text-sm font-semibold ${message.includes("successfully") ? "text-emerald-600" : "text-rose-600"}`}

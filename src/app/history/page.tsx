@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { FiArrowLeft, FiArrowRight, FiClock, FiExternalLink } from "react-icons/fi";
+import { FiArrowLeft, FiArrowRight, FiClock, FiExternalLink, FiRefreshCw } from "react-icons/fi";
 import { authedFetch } from "@/lib/client/api";
+import { useToast } from "@/components/Toast";
 
 type Scan = { id: string; url: string; status: string; score: number | null; createdAt: string };
 type PageData = { scans: Scan[]; pagination: { page: number; pages: number; total: number } };
@@ -12,6 +13,8 @@ export default function HistoryPage() {
   const [data, setData] = useState<PageData | null>(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [rerunning, setRerunning] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     let cancelled = false;
@@ -21,13 +24,34 @@ export default function HistoryPage() {
       .then((value) => {
         if (!cancelled && value.success) setData(value);
       })
+      .catch((error) =>
+        toast("error", error instanceof Error ? error.message : "Could not load history."),
+      )
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [page]);
+  }, [page, toast]);
+
+  async function rerun(scan: Scan) {
+    setRerunning(scan.id);
+    try {
+      const response = await authedFetch("/api/scan", {
+        method: "POST",
+        body: JSON.stringify({ url: scan.url }),
+      });
+      const value = await response.json();
+      if (!response.ok || !value.success)
+        throw new Error(value.error?.message || "Could not re-trigger scan.");
+      toast("success", "Scan re-triggered");
+    } catch (error) {
+      toast("error", error instanceof Error ? error.message : "Could not re-trigger scan.");
+    } finally {
+      setRerunning(null);
+    }
+  }
 
   return (
     <main className="mx-auto min-h-[70vh] max-w-5xl px-4 py-10 sm:px-6">
@@ -76,7 +100,7 @@ export default function HistoryPage() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-bold ${scan.status === "COMPLETED" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" : scan.status === "FAILED" ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300" : "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"}`}
                   >
@@ -87,6 +111,14 @@ export default function HistoryPage() {
                       {scan.score}/100
                     </span>
                   )}
+                  <button
+                    type="button"
+                    disabled={rerunning === scan.id}
+                    onClick={() => void rerun(scan)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-semibold text-primary-600 hover:border-primary-400 disabled:opacity-50 dark:border-slate-700"
+                  >
+                    <FiRefreshCw className={rerunning === scan.id ? "animate-spin" : ""} /> Re-scan
+                  </button>
                   <Link
                     href={`/report/${scan.id}`}
                     aria-label={`View report for ${scan.url}`}
