@@ -3,7 +3,7 @@ import { authenticate, corsHeaders, handleOptions, jsonError, withCors } from "@
 import { prisma } from "@/lib/prisma";
 import { enqueueScan } from "@/lib/queue";
 import { track } from "@/lib/analytics";
-import { rateLimit } from "@/lib/rateLimit";
+import { rateLimit, rateLimitKeyFor } from "@/lib/rateLimit";
 import { validatePublicUrl } from "@/scanner/fetchHtml";
 
 export async function OPTIONS(req: NextRequest) {
@@ -45,14 +45,30 @@ export async function POST(req: NextRequest) {
   const auth = await authenticate(req);
   if (!auth.ok) return auth.response;
 
+  const ipLimit = await rateLimit(`global:${await rateLimitKeyFor(req)}`, 100);
   const limit = await rateLimit(`user:${auth.ctx.userId}`);
+  if (!ipLimit.ok) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: { code: "RATE_LIMITED", message: "Too many requests. Try again later." },
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(ipLimit.retryAfterSeconds), ...corsHeaders(req) },
+      },
+    );
+  }
   if (!limit.ok) {
     return NextResponse.json(
-      { success: false, error: { code: "RATE_LIMITED", message: "Scan limit reached. Try again later." } },
+      {
+        success: false,
+        error: { code: "RATE_LIMITED", message: "Scan limit reached. Try again later." },
+      },
       {
         status: 429,
         headers: { "Retry-After": String(limit.retryAfterSeconds), ...corsHeaders(req) },
-      }
+      },
     );
   }
 
@@ -127,14 +143,15 @@ export async function POST(req: NextRequest) {
       where: { id: scan.id },
       data: { status: "FAILED", error: "Failed to enqueue scan. Queue unavailable." },
     });
-    return jsonError(503, "QUEUE_UNAVAILABLE", "Scan queue is temporarily unavailable. Please try again.");
+    return jsonError(
+      503,
+      "QUEUE_UNAVAILABLE",
+      "Scan queue is temporarily unavailable. Please try again.",
+    );
   }
 
   return withCors(
-    NextResponse.json(
-      { success: true, scanId: scan.id, status: "PENDING" },
-      { status: 202 }
-    ),
-    req
+    NextResponse.json({ success: true, scanId: scan.id, status: "PENDING" }, { status: 202 }),
+    req,
   );
 }

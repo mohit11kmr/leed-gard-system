@@ -6,10 +6,8 @@ export async function OPTIONS(req: NextRequest) {
   return handleOptions(req) ?? new NextResponse(null, { status: 204, headers: corsHeaders(req) });
 }
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const preflight = handleOptions(req);
   if (preflight) return preflight;
 
@@ -17,7 +15,7 @@ export async function GET(
   if (!auth.ok) return auth.response;
 
   const scan = await prisma.scan.findFirst({
-    where: { id: params.id, userId: auth.ctx.userId },
+    where: { id, userId: auth.ctx.userId },
   });
 
   if (!scan) {
@@ -39,6 +37,6 @@ export async function GET(
         completedAt: scan.completedAt,
       },
     }),
-    req
+    req,
   );
 }

@@ -9,7 +9,7 @@ links (WhatsApp, phone, review, social, email), validates them, and returns a
 
 ## Stack
 
-- **Frontend:** Next.js 14 (App Router), React, Tailwind CSS, Framer Motion, React Icons
+- **Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS, Framer Motion, React Icons
 - **Backend:** Next.js API Routes
 - **Database:** PostgreSQL 15 + Prisma ORM
 - **Queue/Cache:** Redis 7 + BullMQ
@@ -102,22 +102,26 @@ Browser ──► Next.js API Routes
 
 ## API
 
-| Method | Path                  | Auth | Description                       |
-|--------|-----------------------|------|-----------------------------------|
-| POST   | `/api/auth/register`  | No   | Register a user                   |
-| POST   | `/api/auth/login`     | No   | Login → JWT                       |
-| POST   | `/api/auth/guest`     | No   | Create a guest session (IP rate-limited) |
-| GET    | `/api/auth/me`        | Yes  | Current user profile              |
-| POST   | `/api/scan`           | Yes  | Start scan → `scanId`             |
-| GET    | `/api/scan/[id]`      | Yes  | Poll scan status / results        |
-| GET    | `/api/scan`           | Yes  | List your recent scans            |
-| POST   | `/api/webhooks`       | Yes  | Register a webhook                |
-| GET    | `/api/webhooks`       | Yes  | List webhooks                     |
-| DELETE | `/api/webhooks/[id]`  | Yes  | Delete a webhook                  |
-| GET    | `/api/monitor`        | Yes  | List monitored sites              |
-| POST   | `/api/monitor`        | Yes  | Add/update a monitored site       |
-| DELETE | `/api/monitor/[id]`   | Yes  | Stop monitoring a site            |
-| GET    | `/api/admin/stats`    | ADMIN| Global usage statistics          |
+| Method | Path                 | Auth  | Description                              |
+| ------ | -------------------- | ----- | ---------------------------------------- |
+| POST   | `/api/auth/register` | No    | Register a user                          |
+| POST   | `/api/auth/login`    | No    | Login → JWT                              |
+| POST   | `/api/auth/guest`    | No    | Create a guest session (IP rate-limited) |
+| GET    | `/api/auth/me`       | Yes   | Current user profile                     |
+| POST   | `/api/scan`          | Yes   | Start scan → `scanId`                    |
+| GET    | `/api/scan/[id]`     | Yes   | Poll scan status / results               |
+| GET    | `/api/scan`          | Yes   | List your recent scans                   |
+| POST   | `/api/scan/bulk`     | Yes   | Queue up to 10 URLs concurrently         |
+| GET    | `/api/history`       | Yes   | Paginated cloud scan history             |
+| GET    | `/api/health`        | No    | Check database and Redis health          |
+| GET    | `/api-docs`          | No    | Interactive OpenAPI documentation        |
+| POST   | `/api/webhooks`      | Yes   | Register a webhook                       |
+| GET    | `/api/webhooks`      | Yes   | List webhooks                            |
+| DELETE | `/api/webhooks/[id]` | Yes   | Delete a webhook                         |
+| GET    | `/api/monitor`       | Yes   | List monitored sites                     |
+| POST   | `/api/monitor`       | Yes   | Add/update a monitored site              |
+| DELETE | `/api/monitor/[id]`  | Yes   | Stop monitoring a site                   |
+| GET    | `/api/admin/stats`   | ADMIN | Global usage statistics                  |
 
 Authenticate with `Authorization: Bearer <jwt>` or `x-api-key: <apiKey>`.
 Rate limit: 5 requests/minute per user/IP (429 with `Retry-After`).
@@ -152,6 +156,25 @@ increase, or the site becomes unreachable, an alert is delivered via:
 - **Alert webhook** — set the per-site `alertWebhook` to any HTTPS endpoint
   (WhatsApp BSP, Slack, CallMeBot, n8n…). Payload includes an
   `X-LeadGuard-Signature` HMAC when `JWT_SECRET`-independent secrets are added.
+- **SMS** — set `alertPhone` in E.164 format and configure `TWILIO_ACCOUNT_SID`,
+  `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER`.
+
+## Environment variables
+
+| Variable                                                          | Default                         | Purpose                                            |
+| ----------------------------------------------------------------- | ------------------------------- | -------------------------------------------------- |
+| `DATABASE_URL`                                                    | local PostgreSQL URL            | Prisma database connection                         |
+| `REDIS_URL`                                                       | `redis://localhost:6379`        | Redis/BullMQ connection                            |
+| `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`                      | localhost, 6379, empty          | Redis connection fields when `REDIS_URL` is absent |
+| `JWT_SECRET`, `JWT_EXPIRES_IN`                                    | required, `1h`                  | Authentication signing and expiry                  |
+| `QUEUE_NAME`, `MAX_CONCURRENT_JOBS`                               | `scan-queue`, `5`               | Worker queue and concurrency                       |
+| `SCAN_TIMEOUT_MS`, `SCAN_MAX_RETRIES`, `SCAN_RETRY_DELAY_MS`      | `10000`, `2`, `1000`            | Scanner limits                                     |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | empty, `587`, `false`           | Optional SMTP alert delivery                       |
+| `RESEND_API_KEY`, `ALERT_FROM_EMAIL`                              | empty, onboarding sender        | Optional Resend email delivery                     |
+| `MONITOR_SWEEP_CRON`                                              | `*/5 * * * *`                   | Monitor sweep schedule                             |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`   | empty                           | Optional SMS alerts                                |
+| `GEMINI_API_KEY`, `GEMINI_MODEL`                                  | empty, `gemini-3-flash-preview` | AI fix suggestions                                 |
+| `CORS_ORIGINS`, `NEXT_PUBLIC_APP_URL`, `NODE_ENV`                 | `*`, localhost, development     | CORS, links, and runtime mode                      |
 
 ## Security notes
 
@@ -189,12 +212,12 @@ npx jest                 # scanner core unit tests
 
 ## Scripts
 
-| Command                 | Description                     |
-|-------------------------|---------------------------------|
-| `npm run dev`           | Start dev server                |
-| `npm run worker`        | Start worker (watch mode)       |
-| `npm run build`         | Production build                |
-| `npm run typecheck`     | TypeScript check                |
-| `npm run prisma:migrate`| Run DB migrations               |
-| `npm run prisma:seed`   | Create admin user               |
-| `npm run prisma:studio` | Open Prisma Studio              |
+| Command                  | Description               |
+| ------------------------ | ------------------------- |
+| `npm run dev`            | Start dev server          |
+| `npm run worker`         | Start worker (watch mode) |
+| `npm run build`          | Production build          |
+| `npm run typecheck`      | TypeScript check          |
+| `npm run prisma:migrate` | Run DB migrations         |
+| `npm run prisma:seed`    | Create admin user         |
+| `npm run prisma:studio`  | Open Prisma Studio        |

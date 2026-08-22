@@ -1,0 +1,2 @@
+ALTER TABLE "Scan" ALTER COLUMN "userId" DROP NOT NULL;
+ALTER TABLE "MonitoredSite" ADD COLUMN "alertPhone" TEXT;

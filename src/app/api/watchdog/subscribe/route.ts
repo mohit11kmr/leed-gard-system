@@ -20,10 +20,13 @@ export async function POST(req: NextRequest) {
   if (!limited.ok) {
     return withCors(
       NextResponse.json(
-        { success: false, error: { code: "RATE_LIMITED", message: "Too many requests. Try again shortly." } },
-        { status: 429, headers: { "Retry-After": String(limited.retryAfterSeconds) } }
+        {
+          success: false,
+          error: { code: "RATE_LIMITED", message: "Too many requests. Try again shortly." },
+        },
+        { status: 429, headers: { "Retry-After": String(limited.retryAfterSeconds) } },
       ),
-      req
+      req,
     );
   }
 
@@ -34,9 +37,9 @@ export async function POST(req: NextRequest) {
     return withCors(
       NextResponse.json(
         { success: false, error: { code: "INVALID_BODY", message: "Invalid JSON body." } },
-        { status: 400 }
+        { status: 400 },
       ),
-      req
+      req,
     );
   }
 
@@ -47,32 +50,48 @@ export async function POST(req: NextRequest) {
   if (!scanId || !contactValue) {
     return withCors(
       NextResponse.json(
-        { success: false, error: { code: "VALIDATION_ERROR", message: "scanId and contactValue are required." } },
-        { status: 400 }
+        {
+          success: false,
+          error: { code: "VALIDATION_ERROR", message: "scanId and contactValue are required." },
+        },
+        { status: 400 },
       ),
-      req
+      req,
     );
   }
 
   if (contactType === "EMAIL" && !EMAIL_REGEX.test(contactValue)) {
     return withCors(
       NextResponse.json(
-        { success: false, error: { code: "INVALID_EMAIL", message: "Please enter a valid email address." } },
-        { status: 400 }
+        {
+          success: false,
+          error: { code: "INVALID_EMAIL", message: "Please enter a valid email address." },
+        },
+        { status: 400 },
       ),
-      req
+      req,
     );
   }
 
   if (contactType === "WHATSAPP") {
     const digits = contactValue.replace(/\D/g, "");
-    if (!/^[6-9]\d{9}$/.test(digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits.slice(-10))) {
+    if (
+      !/^[6-9]\d{9}$/.test(
+        digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits.slice(-10),
+      )
+    ) {
       return withCors(
         NextResponse.json(
-          { success: false, error: { code: "INVALID_PHONE", message: "Please enter a valid 10-digit Indian mobile number." } },
-          { status: 400 }
+          {
+            success: false,
+            error: {
+              code: "INVALID_PHONE",
+              message: "Please enter a valid 10-digit Indian mobile number.",
+            },
+          },
+          { status: 400 },
         ),
-        req
+        req,
       );
     }
   }
@@ -81,10 +100,16 @@ export async function POST(req: NextRequest) {
     if (!/^-?\d{5,16}$/.test(contactValue.trim())) {
       return withCors(
         NextResponse.json(
-          { success: false, error: { code: "INVALID_TELEGRAM", message: "Please enter a valid numeric Telegram chat ID." } },
-          { status: 400 }
+          {
+            success: false,
+            error: {
+              code: "INVALID_TELEGRAM",
+              message: "Please enter a valid numeric Telegram chat ID.",
+            },
+          },
+          { status: 400 },
         ),
-        req
+        req,
       );
     }
   }
@@ -94,9 +119,21 @@ export async function POST(req: NextRequest) {
     return withCors(
       NextResponse.json(
         { success: false, error: { code: "NOT_FOUND", message: "Scan not found." } },
-        { status: 404 }
+        { status: 404 },
       ),
-      req
+      req,
+    );
+  }
+  if (!scan.userId) {
+    return withCors(
+      NextResponse.json(
+        {
+          success: false,
+          error: { code: "UNOWNED_SCAN", message: "This scan cannot be monitored." },
+        },
+        { status: 400 },
+      ),
+      req,
     );
   }
 
@@ -113,7 +150,7 @@ export async function POST(req: NextRequest) {
           message: "This site is already protected.",
         },
       }),
-      req
+      req,
     );
   }
 
@@ -156,6 +193,6 @@ export async function POST(req: NextRequest) {
             : "Free daily protection activated for this page.",
       },
     }),
-    req
+    req,
   );
 }

@@ -1,12 +1,6 @@
 import { lookup } from "node:dns/promises";
 import net from "node:net";
-import {
-  DEFAULT_TIMEOUT_MS,
-  FetchResult,
-  MAX_RETRIES,
-  RETRY_DELAY_MS,
-  ScanError,
-} from "./types";
+import { DEFAULT_TIMEOUT_MS, FetchResult, MAX_RETRIES, RETRY_DELAY_MS, ScanError } from "./types";
 
 const INTERNAL_IP_RANGES = [
   /^0\./,
@@ -90,10 +84,10 @@ function isPrivateIpv6(ip: string): boolean {
   const top32 = v >> 96n;
   if (top32 === 0x20010db8n) return true; // 2001:db8::/32 documentation
 
-  if (v >> 80n === 0n && (v >> 32n) === 0xffffn) {
+  if (v >> 80n === 0n && v >> 32n === 0xffffn) {
     return privateIpv4FromLast32Bits(v); // ::ffff:a.b.c.d IPv4-mapped
   }
-  if ((v >> 32n) === (0x64ff9bn << 64n)) {
+  if (v >> 32n === 0x64ff9bn << 64n) {
     return privateIpv4FromLast32Bits(v); // 64:ff9b::/96 NAT64
   }
   return false;
@@ -105,19 +99,30 @@ export async function assertPublicHost(hostname: string): Promise<void> {
     throw new ScanError("SSRF_BLOCKED", "SSRF blocked: localhost URLs are not allowed.");
   }
 
-  if (/^[0-9.]+$/.test(clean)) {
-    if (isPrivateIpv4(clean)) {
-      throw new ScanError("SSRF_BLOCKED", "SSRF blocked: internal/private IP addresses are not allowed.");
+  if (net.isIP(clean)) {
+    if (net.isIPv4(clean) ? isPrivateIpv4(clean) : isPrivateIpv6(clean)) {
+      throw new ScanError(
+        "SSRF_BLOCKED",
+        "SSRF blocked: internal/private IP addresses are not allowed.",
+      );
     }
     return;
   }
 
   try {
-    const { address } = await lookup(clean, { all: false });
-    if (isPrivateIpv4(address) || isPrivateIpv6(address)) {
+    const first = await lookup(clean, { all: false });
+    const second = await lookup(clean, { all: false });
+    const addresses = [first.address, second.address];
+    if (addresses.some((address) => isPrivateIpv4(address) || isPrivateIpv6(address))) {
       throw new ScanError(
         "SSRF_BLOCKED",
-        "SSRF blocked: hostname resolves to an internal/private address."
+        "SSRF blocked: hostname resolves to an internal/private address.",
+      );
+    }
+    if (first.address !== second.address) {
+      throw new ScanError(
+        "SSRF_BLOCKED",
+        "SSRF blocked: hostname resolution changed between lookups.",
       );
     }
   } catch (err) {
@@ -162,10 +167,7 @@ const MAX_REDIRECTS = 5;
 const MAX_BODY_BYTES = 5 * 1024 * 1024; // 5 MB
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
-async function fetchWithValidatedRedirects(
-  input: string,
-  timeoutMs: number
-): Promise<Response> {
+async function fetchWithValidatedRedirects(input: string, timeoutMs: number): Promise<Response> {
   let current = input;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
@@ -196,15 +198,12 @@ async function fetchWithValidatedRedirects(
     return res;
   }
 
-  throw new ScanError(
-    "TOO_MANY_REDIRECTS",
-    `Too many redirects (more than ${MAX_REDIRECTS}).`
-  );
+  throw new ScanError("TOO_MANY_REDIRECTS", `Too many redirects (more than ${MAX_REDIRECTS}).`);
 }
 
 export async function fetchHtml(
   input: string,
-  timeoutMs: number = DEFAULT_TIMEOUT_MS
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<FetchResult> {
   const url = await validatePublicUrl(input);
   const started = Date.now();
@@ -218,22 +217,19 @@ export async function fetchHtml(
       if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
         throw new ScanError(
           "NOT_HTML",
-          `Target returned ${contentType || "unknown content type"}, not HTML.`
+          `Target returned ${contentType || "unknown content type"}, not HTML.`,
         );
       }
 
       if (!res.ok) {
-        throw new ScanError(
-          "FETCH_FAILED",
-          `Target responded with HTTP ${res.status}.`
-        );
+        throw new ScanError("FETCH_FAILED", `Target responded with HTTP ${res.status}.`);
       }
 
       const contentLength = parseInt(res.headers.get("content-length") || "0", 10);
       if (contentLength > MAX_BODY_BYTES) {
         throw new ScanError(
           "RESPONSE_TOO_LARGE",
-          `Response exceeds ${MAX_BODY_BYTES / (1024 * 1024)} MB limit.`
+          `Response exceeds ${MAX_BODY_BYTES / (1024 * 1024)} MB limit.`,
         );
       }
 
@@ -241,7 +237,7 @@ export async function fetchHtml(
       if (html.length > MAX_BODY_BYTES) {
         throw new ScanError(
           "RESPONSE_TOO_LARGE",
-          `Response exceeds ${MAX_BODY_BYTES / (1024 * 1024)} MB limit.`
+          `Response exceeds ${MAX_BODY_BYTES / (1024 * 1024)} MB limit.`,
         );
       }
       return {

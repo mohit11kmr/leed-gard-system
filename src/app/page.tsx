@@ -1,4 +1,5 @@
 import { FiArrowRight, FiCheck, FiShield } from "react-icons/fi";
+import Link from "next/link";
 import ScanTool from "@/components/ScanTool";
 
 const STATS = [
@@ -35,7 +36,10 @@ const POINTS = [
 export default function HomePage() {
   return (
     <>
-      <section id="top" className="relative overflow-hidden bg-gradient-to-b from-navy-950 via-navy-900 to-navy-950">
+      <section
+        id="top"
+        className="relative overflow-hidden bg-gradient-to-b from-navy-950 via-navy-900 to-navy-950"
+      >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_60%_at_50%_0%,rgba(16,185,129,0.14),transparent)]" />
         <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-16 text-center sm:pt-20">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-emerald-300">
@@ -47,9 +51,8 @@ export default function HomePage() {
             Is your website silently losing customers?
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-300">
-            A broken WhatsApp button or phone link turns ready buyers away every
-            single day. LeadGuard finds them in seconds — and shows you exactly
-            how to fix them.
+            A broken WhatsApp button or phone link turns ready buyers away every single day.
+            LeadGuard finds them in seconds — and shows you exactly how to fix them.
           </p>
 
           <div className="mx-auto mt-10 max-w-2xl">
@@ -122,8 +125,8 @@ export default function HomePage() {
             Find out what your website is really missing
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-primary-100">
-            One scan tells you exactly which contact links are costing you
-            customers. It takes five seconds and it&apos;s free.
+            One scan tells you exactly which contact links are costing you customers. It takes five
+            seconds and it&apos;s free.
           </p>
           <a
             href="#top"
@@ -133,12 +136,12 @@ export default function HomePage() {
             <FiArrowRight className="h-4 w-4" />
           </a>
           <p className="mt-4">
-            <a
+            <Link
               href="/report/cmt3e69mg00057gzv7o4grtbe"
               className="text-sm font-medium text-primary-200 underline-offset-4 transition hover:text-white hover:underline"
             >
               or see an example report →
-            </a>
+            </Link>
           </p>
         </div>
       </section>

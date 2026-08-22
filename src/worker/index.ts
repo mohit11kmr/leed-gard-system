@@ -18,7 +18,7 @@ async function writeScanLog(
   scanId: string,
   level: LogLevel,
   message: string,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
 ) {
   await prisma.scanLog.create({
     data: { scanId, level, message, metadata: (metadata as never) ?? undefined },
@@ -34,10 +34,12 @@ async function handleScanJob(data: ScanJobData) {
     return;
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: scan.userId },
-    include: { webhooks: { where: { isActive: true } } },
-  });
+  const user = scan.userId
+    ? await prisma.user.findUnique({
+        where: { id: scan.userId },
+        include: { webhooks: { where: { isActive: true } } },
+      })
+    : null;
 
   const previousSiteState = scan.monitoredSiteId
     ? await prisma.monitoredSite.findUnique({
@@ -83,7 +85,7 @@ async function handleScanJob(data: ScanJobData) {
       meta: { scanId, score: result.score, brokenLinks: result.scanStats.brokenLinks },
     });
 
-    if (scan.monitoredSiteId && previousSiteState?.isActive) {
+    if (scan.monitoredSiteId && scan.userId && previousSiteState?.isActive) {
       const prevScore = previousSiteState.lastScore;
       const prevBroken = previousSiteState.lastBroken;
       await prisma.monitoredSite.update({
@@ -100,10 +102,7 @@ async function handleScanJob(data: ScanJobData) {
       let reason: string | null = null;
       if (prevScore !== null && result.score < prevScore) {
         reason = `Health score dropped from ${prevScore} to ${result.score}`;
-      } else if (
-        prevBroken !== null &&
-        result.scanStats.brokenLinks > prevBroken
-      ) {
+      } else if (prevBroken !== null && result.scanStats.brokenLinks > prevBroken) {
         reason = `Broken contact links increased from ${prevBroken} to ${result.scanStats.brokenLinks}`;
       } else if (prevScore === null && result.scanStats.brokenLinks > 0) {
         reason = `${result.scanStats.brokenLinks} broken contact link(s) found`;
@@ -122,13 +121,13 @@ async function handleScanJob(data: ScanJobData) {
           logger.error("monitor alert delivery failed", {
             siteId: scan.monitoredSiteId,
             error: String(err),
-          })
+          }),
         );
       }
     }
 
     const webhooks = user?.webhooks.filter((w) =>
-      (w.events as string[]).includes("SCAN_COMPLETED")
+      (w.events as string[]).includes("SCAN_COMPLETED"),
     );
     if (webhooks?.length) {
       await Promise.all(
@@ -141,8 +140,8 @@ async function handleScanJob(data: ScanJobData) {
             scanId,
             url,
             result,
-          })
-        )
+          }),
+        ),
       );
     }
   } catch (err) {
@@ -169,7 +168,7 @@ async function handleScanJob(data: ScanJobData) {
       meta: { scanId, status },
     });
 
-    if (scan.monitoredSiteId && previousSiteState?.isActive) {
+    if (scan.monitoredSiteId && scan.userId && previousSiteState?.isActive) {
       await prisma.monitoredSite.update({
         where: { id: scan.monitoredSiteId },
         data: {
@@ -194,14 +193,12 @@ async function handleScanJob(data: ScanJobData) {
           logger.error("monitor alert delivery failed", {
             siteId: scan.monitoredSiteId,
             error: String(e),
-          })
+          }),
         );
       }
     }
 
-    const webhooks = user?.webhooks.filter((w) =>
-      (w.events as string[]).includes("SCAN_FAILED")
-    );
+    const webhooks = user?.webhooks.filter((w) => (w.events as string[]).includes("SCAN_FAILED"));
     if (webhooks?.length) {
       await Promise.all(
         webhooks.map((w) =>
@@ -213,8 +210,8 @@ async function handleScanJob(data: ScanJobData) {
             scanId,
             url,
             error: message,
-          })
-        )
+          }),
+        ),
       );
     }
   }

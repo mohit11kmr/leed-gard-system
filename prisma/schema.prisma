@@ -53,8 +53,8 @@ model User {
 
 model Scan {
   id              String         @id @default(cuid())
-  userId          String
-  user            User           @relation(fields: [userId], references: [id])
+  userId          String?
+  user            User?          @relation(fields: [userId], references: [id])
   url             String
   status          ScanStatus     @default(PENDING)
   result          Json?
@@ -85,6 +85,7 @@ model MonitoredSite {
   frequency     MonitorFrequency @default(DAILY)
   isActive      Boolean          @default(true)
   alertEmail    String?
+  alertPhone    String?
   alertWebhook  String?
   lastScanId    String?
   lastScore     Int?

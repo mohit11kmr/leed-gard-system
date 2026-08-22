@@ -47,12 +47,18 @@ export async function POST(req: NextRequest) {
   const limit = await rateLimit(`user:${auth.ctx.userId}`);
   if (!limit.ok) {
     return NextResponse.json(
-      { success: false, error: { code: "RATE_LIMITED", message: "Too many requests. Try again later." } },
-      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds), ...corsHeaders(req) } }
+      {
+        success: false,
+        error: { code: "RATE_LIMITED", message: "Too many requests. Try again later." },
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limit.retryAfterSeconds), ...corsHeaders(req) },
+      },
     );
   }
 
-  let body: { url?: string; frequency?: string; alertEmail?: string };
+  let body: { url?: string; frequency?: string; alertEmail?: string; alertPhone?: string };
   try {
     body = await req.json();
   } catch {
@@ -79,6 +85,10 @@ export async function POST(req: NextRequest) {
   if (alertEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(alertEmail)) {
     return jsonError(400, "INVALID_EMAIL", "alertEmail must be a valid email.");
   }
+  const alertPhone = body.alertPhone?.trim() || null;
+  if (alertPhone && !/^\+[1-9]\d{7,14}$/.test(alertPhone)) {
+    return jsonError(400, "INVALID_PHONE", "alertPhone must be in international E.164 format.");
+  }
 
   const site = await prisma.monitoredSite.upsert({
     where: { userId_url: { userId: auth.ctx.userId, url: normalizedUrl } },
@@ -87,11 +97,13 @@ export async function POST(req: NextRequest) {
       url: normalizedUrl,
       frequency,
       alertEmail,
+      alertPhone,
       nextScanAt: new Date(),
     },
     update: {
       frequency,
       alertEmail,
+      alertPhone,
       isActive: true,
       nextScanAt: new Date(),
     },

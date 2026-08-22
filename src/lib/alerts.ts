@@ -70,10 +70,27 @@ async function sendTelegramMessage(chatId: string, text: string): Promise<boolea
   return true;
 }
 
+async function sendSms(to: string, text: string): Promise<boolean> {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const from = process.env.TWILIO_FROM_NUMBER;
+  if (!accountSid || !authToken || !from) {
+    logger.warn("Twilio is not configured; skipping SMS alert", { to });
+    return false;
+  }
+  const twilio = (await import("twilio")).default;
+  await twilio(accountSid, authToken).messages.create({
+    body: text.slice(0, 1500),
+    from,
+    to,
+  });
+  return true;
+}
+
 async function sendWebhook(
   webhookUrl: string,
   secret: string | null,
-  alert: MonitorAlert
+  alert: MonitorAlert,
 ): Promise<boolean> {
   const payload = {
     event: "MONITOR_ALERT",
@@ -120,11 +137,23 @@ export async function deliverMonitorAlert(alert: MonitorAlert): Promise<void> {
           logger.error("monitor email alert failed", {
             siteId: alert.siteId,
             error: err instanceof Error ? err.message : String(err),
-          })
-        )
+          }),
+        ),
     );
   } else {
     logger.warn("no alert email configured; skipping email alert", { siteId: alert.siteId });
+  }
+
+  if (site.alertPhone) {
+    tasks.push(
+      sendSms(site.alertPhone, alertTelegramText(alert))
+        .then((sent) => {
+          if (sent) logger.info("monitor alert SMS sent", { siteId: alert.siteId });
+        })
+        .catch((err) =>
+          logger.error("monitor SMS alert failed", { siteId: alert.siteId, error: String(err) }),
+        ),
+    );
   }
 
   if (site.alertWebhook) {
@@ -140,14 +169,17 @@ export async function deliverMonitorAlert(alert: MonitorAlert): Promise<void> {
             logger.error("monitor telegram alert failed", {
               siteId: alert.siteId,
               error: err instanceof Error ? err.message : String(err),
-            })
-          )
+            }),
+          ),
       );
     } else {
       tasks.push(
         sendWebhook(site.alertWebhook, null, alert).catch((err) =>
-          logger.error("monitor webhook alert failed", { siteId: alert.siteId, error: String(err) })
-        )
+          logger.error("monitor webhook alert failed", {
+            siteId: alert.siteId,
+            error: String(err),
+          }),
+        ),
       );
     }
   }
@@ -156,8 +188,8 @@ export async function deliverMonitorAlert(alert: MonitorAlert): Promise<void> {
   if (process.env.TELEGRAM_BOT_TOKEN && ownerChatId) {
     tasks.push(
       sendTelegramMessage(ownerChatId, alertTelegramText(alert)).catch((err) =>
-        logger.error("owner telegram notification failed", { error: String(err) })
-      )
+        logger.error("owner telegram notification failed", { error: String(err) }),
+      ),
     );
   }
 

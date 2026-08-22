@@ -18,6 +18,7 @@ import {
   FiTrash2,
 } from "react-icons/fi";
 import { authedFetch, getStoredAuth } from "@/lib/client/api";
+import BulkScanUpload from "@/components/BulkScanUpload";
 
 interface Profile {
   id: string;
@@ -228,7 +229,7 @@ export default function DashboardPage() {
     const res = await fetch(`/api/monitor/${id}/run`, { method: "POST" });
     if (res.ok) {
       setSites((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, nextScanAt: new Date().toISOString() } : s))
+        prev.map((s) => (s.id === id ? { ...s, nextScanAt: new Date().toISOString() } : s)),
       );
     }
   }
@@ -254,11 +255,14 @@ export default function DashboardPage() {
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
         Manage your account, scans and webhooks.
       </p>
+      <BulkScanUpload />
 
       {(() => {
-        const criticalIssues = sites.filter((st) => st.lastBroken != null && st.lastBroken > 0).length;
+        const criticalIssues = sites.filter(
+          (st) => st.lastBroken != null && st.lastBroken > 0,
+        ).length;
         const activeAlerts = sites.filter(
-          (st) => st.isActive && st.lastBroken != null && st.lastBroken > 0
+          (st) => st.isActive && st.lastBroken != null && st.lastBroken > 0,
         ).length;
         const stats = [
           { label: "Total scans", value: scans.length },
@@ -301,9 +305,7 @@ export default function DashboardPage() {
           <dl className="mt-4 space-y-3 text-sm">
             <div>
               <dt className="text-slate-500 dark:text-slate-400">Name</dt>
-              <dd className="font-medium text-navy-900 dark:text-white">
-                {profile?.name ?? "—"}
-              </dd>
+              <dd className="font-medium text-navy-900 dark:text-white">{profile?.name ?? "—"}</dd>
             </div>
             <div>
               <dt className="text-slate-500 dark:text-slate-400">Email</dt>
@@ -398,7 +400,9 @@ export default function DashboardPage() {
                       <td className="max-w-[220px] truncate py-2.5 pr-4 font-medium text-navy-900 dark:text-white">
                         {s.url.replace(/^https?:\/\//, "")}
                       </td>
-                      <td className={`py-2.5 pr-4 font-bold ${s.score !== null ? scoreColor(s.score) : "text-slate-400"}`}>
+                      <td
+                        className={`py-2.5 pr-4 font-bold ${s.score !== null ? scoreColor(s.score) : "text-slate-400"}`}
+                      >
                         {s.score !== null ? s.score : s.status === "FAILED" ? "—" : "…"}
                       </td>
                       <td className="py-2.5 pr-4">
@@ -411,8 +415,7 @@ export default function DashboardPage() {
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                            <FiCheckCircle className="h-3.5 w-3.5" />
-                            0
+                            <FiCheckCircle className="h-3.5 w-3.5" />0
                           </span>
                         )}
                       </td>
@@ -455,7 +458,10 @@ export default function DashboardPage() {
         </p>
 
         {monError && (
-          <div role="alert" className="mt-4 rounded-lg border border-red-300 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+          <div
+            role="alert"
+            className="mt-4 rounded-lg border border-red-300 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+          >
             {monError}
           </div>
         )}
@@ -515,7 +521,9 @@ export default function DashboardPage() {
                     {s.lastScore !== null ? (
                       <>
                         last score{" "}
-                        <span className={`font-bold ${scoreColor(s.lastScore)}`}>{s.lastScore}</span>
+                        <span className={`font-bold ${scoreColor(s.lastScore)}`}>
+                          {s.lastScore}
+                        </span>
                         {s.lastBroken !== null && s.lastBroken > 0
                           ? ` · ${s.lastBroken} broken`
                           : " · all links working"}
@@ -545,7 +553,9 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => void toggleSite(s.id, !s.isActive)}
-                    aria-label={s.isActive ? `Pause monitoring ${s.url}` : `Resume monitoring ${s.url}`}
+                    aria-label={
+                      s.isActive ? `Pause monitoring ${s.url}` : `Resume monitoring ${s.url}`
+                    }
                     title={s.isActive ? "Pause" : "Resume"}
                     className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-400 transition hover:border-amber-400 hover:text-amber-500 dark:border-slate-700"
                   >
@@ -576,7 +586,10 @@ export default function DashboardPage() {
         </p>
 
         {whError && (
-          <div role="alert" className="mt-4 rounded-lg border border-red-300 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+          <div
+            role="alert"
+            className="mt-4 rounded-lg border border-red-300 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+          >
             {whError}
           </div>
         )}
@@ -614,7 +627,9 @@ export default function DashboardPage() {
             {webhooks.map((w) => (
               <li key={w.id} className="flex items-center justify-between gap-4 py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-navy-900 dark:text-white">{w.url}</p>
+                  <p className="truncate text-sm font-medium text-navy-900 dark:text-white">
+                    {w.url}
+                  </p>
                   <p className="mt-0.5 text-xs text-slate-400">
                     {w.events.join(", ")}
                     {w.lastTriggered

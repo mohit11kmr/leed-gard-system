@@ -6,10 +6,8 @@ export async function OPTIONS(req: NextRequest) {
   return handleOptions(req) ?? new NextResponse(null, { status: 204, headers: corsHeaders(req) });
 }
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const preflight = handleOptions(req);
   if (preflight) return preflight;
 
@@ -27,7 +25,7 @@ export async function PATCH(
   }
 
   const existing = await prisma.monitoredSite.findUnique({
-    where: { id: params.id },
+    where: { id },
     select: { id: true, userId: true },
   });
   if (!existing || existing.userId !== auth.ctx.userId) {
@@ -35,7 +33,7 @@ export async function PATCH(
   }
 
   const site = await prisma.monitoredSite.update({
-    where: { id: params.id },
+    where: { id },
     data: { isActive: body.isActive },
     select: { id: true, isActive: true },
   });
@@ -43,10 +41,8 @@ export async function PATCH(
   return withCors(NextResponse.json({ success: true, site }), req);
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const preflight = handleOptions(req);
   if (preflight) return preflight;
 
@@ -54,14 +50,14 @@ export async function DELETE(
   if (!auth.ok) return auth.response;
 
   const existing = await prisma.monitoredSite.findUnique({
-    where: { id: params.id },
+    where: { id },
     select: { id: true, userId: true },
   });
   if (!existing || existing.userId !== auth.ctx.userId) {
     return jsonError(404, "SITE_NOT_FOUND", "Monitored site not found.");
   }
 
-  await prisma.monitoredSite.delete({ where: { id: params.id } });
+  await prisma.monitoredSite.delete({ where: { id } });
 
   return withCors(NextResponse.json({ success: true }), req);
 }

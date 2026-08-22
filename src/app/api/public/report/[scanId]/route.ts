@@ -6,15 +6,13 @@ export async function OPTIONS(req: NextRequest) {
   return handleOptions(req) ?? new NextResponse(null, { status: 204, headers: corsHeaders(req) });
 }
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { scanId: string } }
-) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ scanId: string }> }) {
+  const { scanId } = await params;
   const preflight = handleOptions(req);
   if (preflight) return preflight;
 
   const scan = await prisma.scan.findUnique({
-    where: { id: params.scanId },
+    where: { id: scanId },
   });
 
   if (!scan) {
@@ -34,6 +32,6 @@ export async function GET(
         completedAt: scan.completedAt,
       },
     }),
-    req
+    req,
   );
 }

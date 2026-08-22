@@ -6,10 +6,8 @@ export async function OPTIONS(req: NextRequest) {
   return handleOptions(req) ?? new NextResponse(null, { status: 204, headers: corsHeaders(req) });
 }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const preflight = handleOptions(req);
   if (preflight) return preflight;
 
@@ -17,7 +15,7 @@ export async function POST(
   if (!auth.ok) return auth.response;
 
   const existing = await prisma.monitoredSite.findUnique({
-    where: { id: params.id },
+    where: { id },
     select: { id: true, userId: true },
   });
   if (!existing || existing.userId !== auth.ctx.userId) {
@@ -25,7 +23,7 @@ export async function POST(
   }
 
   const site = await prisma.monitoredSite.update({
-    where: { id: params.id },
+    where: { id },
     data: { nextScanAt: new Date(), isActive: true },
     select: { id: true, nextScanAt: true },
   });
@@ -36,6 +34,6 @@ export async function POST(
       site,
       message: "Re-scan queued — it will run within a few minutes.",
     }),
-    req
+    req,
   );
 }
