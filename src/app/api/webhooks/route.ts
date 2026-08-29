@@ -3,6 +3,7 @@ import { authenticate, corsHeaders, handleOptions, jsonError, withCors } from "@
 import { prisma } from "@/lib/prisma";
 import { validatePublicUrl } from "@/scanner/fetchHtml";
 import { webhookInputSchema } from "@/lib/validation";
+import { hashPassword, encryptSecret } from "@/lib/auth";
 
 const VALID_EVENTS = ["SCAN_COMPLETED", "SCAN_FAILED"] as const;
 
@@ -63,17 +64,32 @@ export async function POST(req: NextRequest) {
     return jsonError(409, "WEBHOOK_EXISTS", "A webhook with this URL already exists.");
   }
 
+  const secretHash = body.secret ? await hashPassword(body.secret) : null;
+  const secretEncrypted = body.secret ? encryptSecret(body.secret) : null;
+
   const webhook = await prisma.webhook.create({
     data: {
       userId: auth.ctx.userId,
       url,
-      secret: body.secret || null,
+      secret: null,
+      secretHash,
+      secretEncrypted,
       events: events as never[],
     },
     select: { id: true, url: true, isActive: true, events: true, createdAt: true },
   });
 
-  return withCors(NextResponse.json({ success: true, webhook }, { status: 201 }), req);
+  // Return plaintext secret only once at creation time
+  const response = { success: true, webhook } as {
+    success: true;
+    webhook: typeof webhook;
+    secret?: string;
+  };
+  if (body.secret) {
+    response.secret = body.secret;
+  }
+
+  return withCors(NextResponse.json(response, { status: 201 }), req);
 }
 
 export async function GET(req: NextRequest) {

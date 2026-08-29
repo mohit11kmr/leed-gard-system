@@ -18,6 +18,7 @@ import {
   FiTrash2,
 } from "react-icons/fi";
 import { authedFetch, getStoredAuth } from "@/lib/client/api";
+import DashboardCharts from "@/components/DashboardCharts";
 import BulkScanUpload from "@/components/BulkScanUpload";
 
 interface Profile {
@@ -257,6 +258,8 @@ export default function DashboardPage() {
       </p>
       <BulkScanUpload />
 
+      <DashboardCharts />
+
       {(() => {
         const criticalIssues = sites.filter(
           (st) => st.lastBroken != null && st.lastBroken > 0,
@@ -296,6 +299,8 @@ export default function DashboardPage() {
           </div>
         );
       })()}
+
+      <DashboardCharts />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:col-span-1">

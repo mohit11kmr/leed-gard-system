@@ -38,17 +38,22 @@ enum MonitorFrequency {
 }
 
 model User {
-  id             String          @id @default(cuid())
-  email          String          @unique
-  password       String
-  name           String
-  apiKey         String          @unique
-  role           Role            @default(USER)
-  scans          Scan[]
-  webhooks       Webhook[]
-  monitoredSites MonitoredSite[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id                 String          @id @default(cuid())
+  email              String          @unique
+  password           String
+  name               String
+  apiKey             String          @unique
+  role               Role            @default(USER)
+  resetTokenHash     String?
+  resetTokenExpiresAt DateTime?
+  guestExpiresAt     DateTime?
+  scans              Scan[]
+  webhooks           Webhook[]
+  monitoredSites     MonitoredSite[]
+  scheduledScans     ScheduledScan[]
+  apiTokens          ApiToken[]
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 }
 
 model Scan {
@@ -66,6 +71,9 @@ model Scan {
   queueJobId      String?
   monitoredSite   MonitoredSite? @relation(fields: [monitoredSiteId], references: [id])
   monitoredSiteId String?
+  screenshotPath  String?
+  aiRemediation   String?
+  leadAuditData   Json?
   startedAt       DateTime?
   completedAt     DateTime?
   createdAt       DateTime       @default(now())
@@ -75,6 +83,34 @@ model Scan {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+}
+
+model ScheduledScan {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  url       String
+  schedule  String
+  enabled   Boolean   @default(true)
+  lastRun   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  tokenHash  String    @unique
+  prefix     String
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model MonitoredSite {
@@ -101,16 +137,18 @@ model MonitoredSite {
 }
 
 model Webhook {
-  id            String        @id @default(cuid())
-  userId        String
-  user          User          @relation(fields: [userId], references: [id])
-  url           String
-  secret        String?
-  events        WebhookEvent[]
-  isActive      Boolean       @default(true)
-  lastTriggered DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+  url            String
+  secret         String?
+  secretHash     String?
+  secretEncrypted String?
+  events         WebhookEvent[]
+  isActive       Boolean       @default(true)
+  lastTriggered  DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@unique([userId, url])
 }

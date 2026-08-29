@@ -1,6 +1,6 @@
 import { redis } from "./redis";
 
-const WINDOW_SECONDS = 60;
+const WINDOW_MS = 60_000; // 60 seconds in milliseconds
 const DEFAULT_MAX_REQUESTS = 5;
 
 export interface RateLimitResult {
@@ -12,10 +12,10 @@ export interface RateLimitResult {
 
 export async function rateLimit(
   key: string,
-  maxRequests: number = DEFAULT_MAX_REQUESTS
+  maxRequests: number = DEFAULT_MAX_REQUESTS,
 ): Promise<RateLimitResult> {
-  const now = Math.floor(Date.now() / 1000);
-  const windowStart = now - WINDOW_SECONDS;
+  const now = Date.now();
+  const windowStart = now - WINDOW_MS;
   const redisKey = `rl:${key}`;
 
   try {
@@ -23,7 +23,7 @@ export async function rateLimit(
     pipeline.zremrangebyscore(redisKey, 0, windowStart);
     pipeline.zadd(redisKey, now, `${now}:${Math.random()}`);
     pipeline.zcard(redisKey);
-    pipeline.expire(redisKey, WINDOW_SECONDS + 1);
+    pipeline.expire(redisKey, Math.ceil(WINDOW_MS / 1000) + 1);
     const results = await pipeline.exec();
 
     const count = results?.[2]?.[1] as number;
@@ -31,8 +31,9 @@ export async function rateLimit(
     if (count > maxRequests) {
       const oldest = await redis.zrange(redisKey, 0, 0, "WITHSCORES");
       const oldestTs = oldest.length >= 2 ? parseInt(oldest[1], 10) : now;
-      const retryAfter = Math.max(1, WINDOW_SECONDS - (now - oldestTs));
-      return { ok: false, retryAfterSeconds: retryAfter, remaining: 0, limit: maxRequests };
+      const retryAfterMs = Math.max(1, WINDOW_MS - (now - oldestTs));
+      const retryAfterSeconds = Math.ceil(retryAfterMs / 1000);
+      return { ok: false, retryAfterSeconds, remaining: 0, limit: maxRequests };
     }
 
     return { ok: true, retryAfterSeconds: 0, remaining: maxRequests - count, limit: maxRequests };

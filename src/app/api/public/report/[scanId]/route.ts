@@ -32,6 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ scan
       result: scan.result,
       error: scan.error,
       completedAt: scan.completedAt,
+      screenshotPath: scan.screenshotPath,
     },
   };
   if (scan.status === "COMPLETED") await cacheScanResult(scanId, response).catch(() => undefined);

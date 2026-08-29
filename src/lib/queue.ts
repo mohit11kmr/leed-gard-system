@@ -29,6 +29,8 @@ export async function enqueueScan(scanId: string, url: string): Promise<string> 
 
 export const MONITOR_SWEEP_JOB = "monitor-sweep";
 export const CLEANUP_STALLED_JOB = "cleanup-stalled";
+export const SCHEDULED_SCAN_JOB = "scheduled-scan";
+export const GUEST_CLEANUP_JOB = "guest-cleanup";
 
 export async function registerMonitorSweeper(): Promise<void> {
   const pattern = process.env.MONITOR_SWEEP_CRON || "*/15 * * * *";
@@ -38,6 +40,10 @@ export async function registerMonitorSweeper(): Promise<void> {
   });
   await scanQueue.add(CLEANUP_STALLED_JOB, {} as ScanJobData, {
     jobId: "cleanup-stalled-daily",
+    repeat: { pattern: "0 3 * * *" },
+  });
+  await scanQueue.add(GUEST_CLEANUP_JOB, {} as ScanJobData, {
+    jobId: "guest-cleanup-daily",
     repeat: { pattern: "0 3 * * *" },
   });
 }
@@ -56,6 +62,8 @@ export async function removeStaleJobs(): Promise<number> {
 export async function createScanWorker(
   handler: (data: ScanJobData) => Promise<void>,
   onSweep?: () => Promise<number>,
+  onScheduledScan?: (scheduledScanId: string) => Promise<void>,
+  onGuestCleanup?: () => Promise<number>,
 ) {
   const worker = new Worker<ScanJobData>(
     QUEUE_NAME,
@@ -67,6 +75,15 @@ export async function createScanWorker(
       if (job.name === CLEANUP_STALLED_JOB) {
         const removed = await removeStaleJobs();
         console.info(`[worker] removed ${removed} stale jobs`);
+        return;
+      }
+      if (job.name === SCHEDULED_SCAN_JOB) {
+        const schedId = (job.data as unknown as { scheduledScanId: string }).scheduledScanId;
+        if (schedId && onScheduledScan) await onScheduledScan(schedId);
+        return;
+      }
+      if (job.name === GUEST_CLEANUP_JOB) {
+        if (onGuestCleanup) await onGuestCleanup();
         return;
       }
       await handler(job.data);

@@ -11,6 +11,8 @@ import SecurityPanel from "./SecurityPanel";
 import PillarCards from "./PillarCards";
 import WatchdogForm from "./WatchdogForm";
 import CriticalFindings from "./CriticalFindings";
+import AiFixSuggestions from "./AiFixSuggestions";
+import ScreenshotBanner from "./ScreenshotBanner";
 import LossCalculator from "./LossCalculator";
 import SummaryStat from "@/ui/data/SummaryStat";
 import StatusBadge from "@/ui/data/StatusBadge";
@@ -23,6 +25,7 @@ interface PublicReportData {
   result: ScanResult | null;
   error: string | null;
   completedAt: string | null;
+  screenshotPath: string | null;
 }
 
 export default function ReportView({ scanId }: { scanId: string }) {
@@ -49,7 +52,11 @@ export default function ReportView({ scanId }: { scanId: string }) {
     void fetch("/api/event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event, url: typeof window !== "undefined" ? window.location.href : null, meta }),
+      body: JSON.stringify({
+        event,
+        url: typeof window !== "undefined" ? window.location.href : null,
+        meta,
+      }),
     }).catch(() => {});
   }
 
@@ -125,7 +132,8 @@ export default function ReportView({ scanId }: { scanId: string }) {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-6 text-center">
+      <ScreenshotBanner scanId={scanId} hasScreenshot={Boolean(report.screenshotPath)} />
+      <div className="mb-6 mt-6 text-center">
         <p className="inline-flex items-center gap-1.5 rounded-full border border-primary-500/30 bg-primary-500/10 px-3 py-1 text-xs font-medium text-primary-300">
           <FiShield className="h-3.5 w-3.5" />
           LeadGuard Audit Report
@@ -151,13 +159,18 @@ export default function ReportView({ scanId }: { scanId: string }) {
             )}
             <div className="grid grid-cols-3 gap-3">
               <SummaryStat label="Links" value={totalLinks} color="#818cf8" />
-              <SummaryStat label="Working" value={result?.scanStats.workingLinks ?? 0} color="#34d399" />
+              <SummaryStat
+                label="Working"
+                value={result?.scanStats.workingLinks ?? 0}
+                color="#34d399"
+              />
               <SummaryStat label="Broken" value={brokenLinks} color="#fb7185" />
             </div>
             {result?.performance ? (
               <p className="text-xs text-white/60">
                 Fetch {formatMs(result.performance.fetchTime)} · Parse{" "}
-                {formatMs(result.performance.parseTime)} · Total {formatMs(result.performance.totalTime)}
+                {formatMs(result.performance.parseTime)} · Total{" "}
+                {formatMs(result.performance.totalTime)}
               </p>
             ) : null}
           </div>
@@ -171,48 +184,100 @@ export default function ReportView({ scanId }: { scanId: string }) {
               <SecurityPanel security={result.security} />
             </div>
             <div className="grid gap-6 p-6 lg:grid-cols-2">
-            <LinkSection title="WhatsApp" count={result.whatsappLinks.length} icon={<span aria-hidden>🟢</span>}>
-              {result.whatsappLinks.map((l, i) => (
-                <LinkRow key={i} url={l.url} display={l.url || "(no WhatsApp CTA found)"} status={l.status} sub={l.phone ? `Phone: ${l.phone}` : undefined} issue={l.issue} fix={l.suggestedFix} />
-              ))}
-            </LinkSection>
+              <LinkSection
+                title="WhatsApp"
+                count={result.whatsappLinks.length}
+                icon={<span aria-hidden>🟢</span>}
+              >
+                {result.whatsappLinks.map((l, i) => (
+                  <LinkRow
+                    key={i}
+                    url={l.url}
+                    display={l.url || "(no WhatsApp CTA found)"}
+                    status={l.status}
+                    sub={l.phone ? `Phone: ${l.phone}` : undefined}
+                    issue={l.issue}
+                    fix={l.suggestedFix}
+                  />
+                ))}
+              </LinkSection>
 
-            <LinkSection title="Phone" count={result.phoneLinks.length} icon={<span aria-hidden>📞</span>}>
-              {result.phoneLinks.map((l, i) => (
-                <LinkRow key={i} url={l.url} display={l.url} status={l.status} sub={l.number ? `Number: ${l.number}` : undefined} issue={l.issue} fix={l.suggestedFix} />
-              ))}
-            </LinkSection>
+              <LinkSection
+                title="Phone"
+                count={result.phoneLinks.length}
+                icon={<span aria-hidden>📞</span>}
+              >
+                {result.phoneLinks.map((l, i) => (
+                  <LinkRow
+                    key={i}
+                    url={l.url}
+                    display={l.url}
+                    status={l.status}
+                    sub={l.number ? `Number: ${l.number}` : undefined}
+                    issue={l.issue}
+                    fix={l.suggestedFix}
+                  />
+                ))}
+              </LinkSection>
 
-            <LinkSection title="Email" count={result.emailLinks.length} icon={<span aria-hidden>✉️</span>}>
-              {result.emailLinks.map((l, i) => (
-                <LinkRow key={i} url={l.url} display={l.email} status={l.status} issue={l.issue} fix={l.suggestedFix} />
-              ))}
-            </LinkSection>
+              <LinkSection
+                title="Email"
+                count={result.emailLinks.length}
+                icon={<span aria-hidden>✉️</span>}
+              >
+                {result.emailLinks.map((l, i) => (
+                  <LinkRow
+                    key={i}
+                    url={l.url}
+                    display={l.email}
+                    status={l.status}
+                    issue={l.issue}
+                    fix={l.suggestedFix}
+                  />
+                ))}
+              </LinkSection>
 
-            <LinkSection title="Review" count={result.reviewLinks.length} icon={<span aria-hidden>⭐</span>}>
-              {result.reviewLinks.map((l, i) => (
-                <LinkRow key={i} url={l.url} display={l.url} badge={<StatusBadge platform={l.platform} />} />
-              ))}
-            </LinkSection>
-
-            <div className="lg:col-span-2">
-              <LinkSection title="Social" count={result.socialLinks.length} icon={<span aria-hidden>🌐</span>}>
-                {result.socialLinks.map((l, i) => (
+              <LinkSection
+                title="Review"
+                count={result.reviewLinks.length}
+                icon={<span aria-hidden>⭐</span>}
+              >
+                {result.reviewLinks.map((l, i) => (
                   <LinkRow
                     key={i}
                     url={l.url}
                     display={l.url}
                     badge={<StatusBadge platform={l.platform} />}
-                    sub={l.platform}
                   />
                 ))}
               </LinkSection>
-            </div>
+
+              <div className="lg:col-span-2">
+                <LinkSection
+                  title="Social"
+                  count={result.socialLinks.length}
+                  icon={<span aria-hidden>🌐</span>}
+                >
+                  {result.socialLinks.map((l, i) => (
+                    <LinkRow
+                      key={i}
+                      url={l.url}
+                      display={l.url}
+                      badge={<StatusBadge platform={l.platform} />}
+                      sub={l.platform}
+                    />
+                  ))}
+                </LinkSection>
+              </div>
             </div>
           </>
         ) : (
           <p className="p-6 text-sm text-white/70">No scan data available.</p>
         )}
+      </div>
+
+      <div className="mt-6 text-left">
+        <AiFixSuggestions scanId={scanId} />
       </div>
 
       <div className="mt-6 text-left">
@@ -222,7 +287,8 @@ export default function ReportView({ scanId }: { scanId: string }) {
       <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
         <p className="text-lg font-semibold text-white">Ready to fix these broken links?</p>
         <p className="mt-1 text-sm text-white/70">
-          Our team can fix every broken contact channel in 24 hours — or set up 24/7 monitoring so this never happens again.
+          Our team can fix every broken contact channel in 24 hours — or set up 24/7 monitoring so
+          this never happens again.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
           {result && (

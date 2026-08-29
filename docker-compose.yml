@@ -1,22 +1,27 @@
 x-app-env: &app-env
-  DATABASE_URL: "postgresql://postgres:postgres@db:5432/leadguard?schema=public"
-  REDIS_URL: "redis://redis:6379"
-  JWT_SECRET: "${JWT_SECRET:-dev-compose-secret-change-me}"
+  DATABASE_URL: "${DATABASE_URL}"
+  REDIS_URL: "${REDIS_URL}"
+  JWT_SECRET: "${JWT_SECRET}"
   JWT_EXPIRES_IN: "${JWT_EXPIRES_IN:-1h}"
   QUEUE_NAME: "scan-queue"
   MAX_CONCURRENT_JOBS: "5"
   NEXT_PUBLIC_APP_NAME: "LeadGuard"
   NODE_ENV: "production"
-  CORS_ORIGINS: "*"
-  ADMIN_EMAIL: "${ADMIN_EMAIL:-admin@leadguard.app}"
-  ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin-password-change-me}"
+  CORS_ORIGINS: "${CORS_ORIGINS}"
+  ADMIN_EMAIL: "${ADMIN_EMAIL}"
+  ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
   RESEND_API_KEY: "${RESEND_API_KEY:-}"
   ALERT_FROM_EMAIL: "${ALERT_FROM_EMAIL:-LeadGuard <onboarding@resend.dev>}"
   GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+  OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+  OPENAI_MODEL: "${OPENAI_MODEL:-gpt-4o-mini}"
+  CHROMIUM_PATH: "${CHROMIUM_PATH:-/usr/bin/chromium}"
   GEMINI_MODEL: "${GEMINI_MODEL:-gemini-3-flash-preview}"
   MONITOR_SWEEP_CRON: "${MONITOR_SWEEP_CRON:-*/5 * * * *}"
   NODE_OPTIONS: "--dns-result-order=ipv4first"
   INTERNAL_ALERT_WEBHOOK: "${INTERNAL_ALERT_WEBHOOK:-}"
+  TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+  TELEGRAM_OWNER_CHAT_ID: "${TELEGRAM_OWNER_CHAT_ID:-}"
 
 services:
   db:
@@ -97,6 +102,8 @@ services:
       NODE_OPTIONS: "--max-old-space-size=512 --dns-result-order=ipv4first"
     ports:
       - "3000:3000"
+    volumes:
+      - screenshots:/app/public/screenshots
     healthcheck:
       test:
         [
@@ -126,6 +133,14 @@ services:
     environment:
       <<: *app-env
       NODE_OPTIONS: "--max-old-space-size=1024 --dns-result-order=ipv4first"
+    volumes:
+      - screenshots:/app/public/screenshots
+    healthcheck:
+      test: ["CMD-SHELL", "/scripts/worker-healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
 
   backup:
     image: postgres:15-alpine
@@ -135,7 +150,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: "postgresql://postgres:postgres@db:5432/leadguard?schema=public"
+      DATABASE_URL: "${DATABASE_URL}"
       BACKUP_DIR: /backups
     volumes:
       - ./scripts/backup.sh:/scripts/backup.sh:ro
@@ -148,3 +163,4 @@ volumes:
   pgdata:
   redisdata:
   pgbackups:
+  screenshots:

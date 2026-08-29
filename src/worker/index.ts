@@ -8,11 +8,20 @@ import {
   enqueueScan,
   registerMonitorSweeper,
   removeStaleJobs,
+  SCHEDULED_SCAN_JOB,
   ScanJobData,
 } from "@/lib/queue";
+import {
+  registerAllSchedules,
+  registerGuestCleanup,
+  cleanupExpiredGuests,
+  GUEST_CLEANUP_JOB,
+} from "@/lib/scheduler";
+import { generateRemediation } from "@/lib/openai";
+import { captureScreenshot } from "@/scanner/screenshot";
 import { validatePublicUrl } from "@/scanner/fetchHtml";
 import { track } from "@/lib/analytics";
-import { ScanError } from "@/scanner/types";
+import { ScanError, ScanResult } from "@/scanner/types";
 import { deliverWebhook } from "@/lib/webhook";
 import { performScan } from "@/scanner";
 import { installGracefulShutdown } from "@/lib/graceful-shutdown";
@@ -93,6 +102,9 @@ async function handleScanJob(data: ScanJobData) {
       meta: { scanId, score: result.score, brokenLinks: result.scanStats.brokenLinks },
     });
 
+    // Post-scan enrichment: screenshot + AI remediation (non-blocking, fail-safe)
+    void enrichScan(scanId, url, result);
+
     if (scan.monitoredSiteId && scan.userId && previousSiteState?.isActive) {
       const prevScore = previousSiteState.lastScore;
       const prevBroken = previousSiteState.lastBroken;
@@ -143,7 +155,6 @@ async function handleScanJob(data: ScanJobData) {
           deliverWebhook({
             webhookId: w.id,
             webhookUrl: w.url,
-            secret: w.secret,
             event: "SCAN_COMPLETED",
             scanId,
             url,
@@ -220,7 +231,6 @@ async function handleScanJob(data: ScanJobData) {
           deliverWebhook({
             webhookId: w.id,
             webhookUrl: w.url,
-            secret: w.secret,
             event: "SCAN_FAILED",
             scanId,
             url,
@@ -229,6 +239,43 @@ async function handleScanJob(data: ScanJobData) {
         ),
       );
     }
+  }
+}
+
+async function enrichScan(scanId: string, url: string, result: ScanResult): Promise<void> {
+  const shot = await captureScreenshot(scanId, url);
+  if (shot) {
+    await prisma.scan
+      .update({ where: { id: scanId }, data: { screenshotPath: shot.publicPath } })
+      .catch(() => {});
+  }
+
+  const remediation = await generateRemediation({
+    url,
+    score: result.score,
+    brokenLinks: [
+      ...result.phoneLinks
+        .filter((l) => l.status !== "WORKING")
+        .map((l) => ({ url: l.url, status: l.status, suggestedFix: l.suggestedFix })),
+      ...result.emailLinks
+        .filter((l) => l.status !== "WORKING")
+        .map((l) => ({ url: l.url, status: l.status, suggestedFix: l.suggestedFix })),
+    ],
+    securityFindings: (result.security?.findings ?? []).map((f) => ({
+      ruleId: f.ruleId,
+      type: f.type,
+      severity: f.severity,
+      detail: f.detail,
+      evidence: f.evidence,
+    })),
+    seoIssues: (result.seoFindings ?? [])
+      .filter((f) => f.severity !== "INFO")
+      .map((f) => ({ severity: f.severity, detail: f.message })),
+  });
+  if (remediation) {
+    await prisma.scan
+      .update({ where: { id: scanId }, data: { aiRemediation: remediation } })
+      .catch(() => {});
   }
 }
 
@@ -272,12 +319,42 @@ export async function monitorSweep(): Promise<number> {
   return enqueued;
 }
 
+export async function handleScheduledScan(scheduledScanId: string): Promise<void> {
+  const sched = await prisma.scheduledScan.findUnique({ where: { id: scheduledScanId } });
+  if (!sched || !sched.enabled) return;
+  try {
+    const url = await validatePublicUrl(sched.url);
+    const scan = await prisma.scan.create({
+      data: { userId: sched.userId, url, status: "PENDING" },
+    });
+    await handleScanJob({ scanId: scan.id, url });
+    await prisma.scheduledScan.update({
+      where: { id: sched.id },
+      data: { lastRun: new Date() },
+    });
+    logger.info("scheduled scan executed", { scheduledScanId, scanId: scan.id, url });
+  } catch (err) {
+    logger.error("scheduled scan failed", {
+      scheduledScanId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 export async function startWorker(): Promise<void> {
-  const worker = await createScanWorker(handleScanJob, monitorSweep);
+  const worker = await createScanWorker(
+    handleScanJob,
+    monitorSweep,
+    handleScheduledScan,
+    cleanupExpiredGuests,
+  );
   installGracefulShutdown(worker);
   await registerMonitorSweeper();
+  await registerGuestCleanup();
+  const schedules = await registerAllSchedules();
   logger.info("LeadGuard worker started", {
     concurrency: process.env.MAX_CONCURRENT_JOBS || 5,
+    scheduledScans: schedules,
   });
 }
 

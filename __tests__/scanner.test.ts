@@ -10,7 +10,12 @@ import {
 import { validatePublicUrl } from "../src/scanner/fetchHtml";
 import { calculateScore } from "../src/scanner/score";
 import { performScan } from "../src/scanner";
-import { isValidIndianPhone, validateEmailLink, validatePhoneLink, validateWhatsAppLink } from "../src/scanner/validate";
+import {
+  isValidIndianPhone,
+  validateEmailLink,
+  validatePhoneLink,
+  validateWhatsAppLink,
+} from "../src/scanner/validate";
 
 describe("cleanHtml", () => {
   it("removes scripts, styles and comments", () => {
@@ -43,9 +48,13 @@ describe("extract", () => {
     expect(review).toHaveLength(1);
     expect(review[0].platform).toBe("Google Page");
 
-    const social = extractSocialLinks(`<a href="https://facebook.com/example">f</a><a href="https://instagram.com/x">i</a>`);
+    const social = extractSocialLinks(
+      `<a href="https://facebook.com/example">f</a><a href="https://instagram.com/x">i</a>`,
+    );
     expect(social).toHaveLength(2);
-    expect(social.map((s) => s.platform)).toEqual(expect.arrayContaining(["facebook", "instagram"]));
+    expect(social.map((s) => s.platform)).toEqual(
+      expect.arrayContaining(["facebook", "instagram"]),
+    );
   });
 
   it("extracts mailto emails", () => {
@@ -55,7 +64,9 @@ describe("extract", () => {
   });
 
   it("deduplicates repeated URLs", () => {
-    const links = extractWhatsAppLinks(`<a href="https://wa.me/919876543210">a</a><a href="https://wa.me/919876543210">b</a>`);
+    const links = extractWhatsAppLinks(
+      `<a href="https://wa.me/919876543210">a</a><a href="https://wa.me/919876543210">b</a>`,
+    );
     expect(links).toHaveLength(1);
   });
 
@@ -89,17 +100,32 @@ describe("validate", () => {
   });
 
   it("validates WhatsApp links with 10-15 digit numbers", () => {
-    const ok = validateWhatsAppLink({ url: "https://wa.me/919876543210", phone: "919876543210", status: "WORKING", isValid: true });
+    const ok = validateWhatsAppLink({
+      url: "https://wa.me/919876543210",
+      phone: "919876543210",
+      status: "WORKING",
+      isValid: true,
+    });
     expect(ok.isValid).toBe(true);
     expect(ok.status).toBe("WORKING");
 
-    const bad = validateWhatsAppLink({ url: "https://wa.me/123", phone: "123", status: "WORKING", isValid: true });
+    const bad = validateWhatsAppLink({
+      url: "https://wa.me/123",
+      phone: "123",
+      status: "WORKING",
+      isValid: true,
+    });
     expect(bad.isValid).toBe(false);
     expect(bad.status).toBe("BROKEN");
   });
 
   it("flags double +91 country code in wa.me links with a fix", () => {
-    const bad = validateWhatsAppLink({ url: "https://wa.me/91919876543210", phone: "91919876543210", status: "WORKING", isValid: true });
+    const bad = validateWhatsAppLink({
+      url: "https://wa.me/91919876543210",
+      phone: "91919876543210",
+      status: "WORKING",
+      isValid: true,
+    });
     expect(bad.isValid).toBe(false);
     expect(bad.status).toBe("BROKEN");
     expect(bad.issue).toMatch(/Double \+91/);
@@ -107,47 +133,97 @@ describe("validate", () => {
   });
 
   it("treats +91 followed by number starting with 91 as legit (no false positive)", () => {
-    const ok = validateWhatsAppLink({ url: "https://wa.me/919112345678", phone: "919112345678", status: "WORKING", isValid: true });
+    const ok = validateWhatsAppLink({
+      url: "https://wa.me/919112345678",
+      phone: "919112345678",
+      status: "WORKING",
+      isValid: true,
+    });
     expect(ok.isValid).toBe(true);
     expect(ok.issue).toBeNull();
   });
 
   it("flags missing country code on wa.me links", () => {
-    const bad = validateWhatsAppLink({ url: "https://wa.me/9876543210", phone: "9876543210", status: "WORKING", isValid: true });
+    const bad = validateWhatsAppLink({
+      url: "https://wa.me/9876543210",
+      phone: "9876543210",
+      status: "WORKING",
+      isValid: true,
+    });
     expect(bad.isValid).toBe(false);
     expect(bad.issue).toMatch(/Missing \+91 country code/);
     expect(bad.suggestedFix).toBe("Change the link to https://wa.me/919876543210");
   });
 
   it("adds issue and fix text to invalid tel links", () => {
-    const bad = validatePhoneLink({ url: "tel:1234567890", number: "1234567890", status: "WORKING", isValid: true });
+    const bad = validatePhoneLink({
+      url: "tel:1234567890",
+      number: "1234567890",
+      status: "WORKING",
+      isValid: true,
+    });
     expect(bad.isValid).toBe(false);
     expect(bad.issue).toMatch(/Invalid click-to-call/);
   });
 
   it("validates phone links", () => {
-    expect(validatePhoneLink({ url: "tel:9876543210", number: "9876543210", status: "WORKING", isValid: true }).isValid).toBe(true);
-    expect(validatePhoneLink({ url: "tel:1234567890", number: "1234567890", status: "WORKING", isValid: true }).isValid).toBe(false);
+    expect(
+      validatePhoneLink({
+        url: "tel:9876543210",
+        number: "9876543210",
+        status: "WORKING",
+        isValid: true,
+      }).isValid,
+    ).toBe(true);
+    expect(
+      validatePhoneLink({
+        url: "tel:1234567890",
+        number: "1234567890",
+        status: "WORKING",
+        isValid: true,
+      }).isValid,
+    ).toBe(false);
   });
 
   it("validates emails", () => {
-    expect(validateEmailLink({ email: "info@example.com", url: "mailto:info@example.com", status: "WORKING", isValid: true }).isValid).toBe(true);
-    expect(validateEmailLink({ email: "not-an-email", url: "mailto:not-an-email", status: "WORKING", isValid: true }).isValid).toBe(false);
+    expect(
+      validateEmailLink({
+        email: "info@example.com",
+        url: "mailto:info@example.com",
+        status: "WORKING",
+        isValid: true,
+      }).isValid,
+    ).toBe(true);
+    expect(
+      validateEmailLink({
+        email: "not-an-email",
+        url: "mailto:not-an-email",
+        status: "WORKING",
+        isValid: true,
+      }).isValid,
+    ).toBe(false);
   });
 });
 
 describe("score", () => {
   it("deducts per broken category and clamps at 0", () => {
-    expect(calculateScore({ brokenWhatsAppCount: 1, invalidPhoneCount: 1, invalidEmailCount: 1 }).score).toBe(40);
-    expect(calculateScore({ brokenWhatsAppCount: 0, invalidPhoneCount: 0, invalidEmailCount: 0 }).score).toBe(100);
-    expect(calculateScore({ brokenWhatsAppCount: 10, invalidPhoneCount: 10, invalidEmailCount: 10 }).score).toBe(0);
+    expect(
+      calculateScore({ brokenWhatsAppCount: 1, invalidPhoneCount: 1, invalidEmailCount: 1 }).score,
+    ).toBe(40);
+    expect(
+      calculateScore({ brokenWhatsAppCount: 0, invalidPhoneCount: 0, invalidEmailCount: 0 }).score,
+    ).toBe(100);
+    expect(
+      calculateScore({ brokenWhatsAppCount: 10, invalidPhoneCount: 10, invalidEmailCount: 10 })
+        .score,
+    ).toBe(0);
   });
 });
 
 describe("validatePublicUrl", () => {
   it("adds https scheme", async () => {
     const lookup = jest.spyOn(require("node:dns/promises"), "lookup");
-    lookup.mockResolvedValue({ address: "93.184.216.34", family: 4 });
+    lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     await expect(validatePublicUrl("example.com")).resolves.toBe("https://example.com");
     lookup.mockRestore();
   });
@@ -161,26 +237,31 @@ describe("validatePublicUrl", () => {
 
   it("rejects hostnames resolving to private addresses (DNS rebinding)", async () => {
     const lookup = jest.spyOn(require("node:dns/promises"), "lookup");
-    lookup.mockResolvedValue({ address: "127.0.0.1", family: 4 });
+    lookup.mockResolvedValue([{ address: "127.0.0.1", family: 4 }]);
     await expect(validatePublicUrl("http://127.0.0.1.nip.io")).rejects.toThrow(/SSRF/i);
     lookup.mockRestore();
   });
 
   it("rejects IPv6 NAT64 / IPv4-mapped addresses that embed private IPv4", async () => {
     const lookup = jest.spyOn(require("node:dns/promises"), "lookup");
-    lookup.mockResolvedValue({ address: "64:ff9b::7f00:1", family: 6 });
+    lookup.mockResolvedValue([{ address: "64:ff9b::7f00:1", family: 6 }]);
     await expect(validatePublicUrl("http://nat64.example.com")).rejects.toThrow(/SSRF/i);
-    lookup.mockResolvedValue({ address: "::ffff:7f00:1", family: 6 });
+    lookup.mockResolvedValue([{ address: "::ffff:7f00:1", family: 6 }]);
     await expect(validatePublicUrl("http://mapped.example.com")).rejects.toThrow(/SSRF/i);
-    lookup.mockResolvedValue({ address: "::1", family: 6 });
+    lookup.mockResolvedValue([{ address: "::1", family: 6 }]);
     await expect(validatePublicUrl("http://loop.example.com")).rejects.toThrow(/SSRF/i);
     lookup.mockRestore();
   });
 
   it("allows public IPv6 addresses", async () => {
     const lookup = jest.spyOn(require("node:dns/promises"), "lookup");
-    lookup.mockResolvedValue({ address: "2606:4700:4700::1111", family: 6 });
-    await expect(validatePublicUrl("http://public-v6.example.com")).resolves.toMatch(/^https?:\/\//);
+    lookup.mockResolvedValue([{ address: "2606:4700:4700::1111", family: 6 }]);
+    // round-robin: second lookup returns a different PUBLIC ip — must still pass
+    lookup.mockResolvedValueOnce([{ address: "2606:4700:4700::2222", family: 6 }]);
+    lookup.mockResolvedValueOnce([{ address: "2606:4700:4700::1111", family: 6 }]);
+    await expect(validatePublicUrl("http://public-v6.example.com")).resolves.toMatch(
+      /^https?:\/\//,
+    );
     lookup.mockRestore();
   });
 
@@ -208,10 +289,12 @@ describe("performScan (mocked fetch)", () => {
       url: "https://example.com/",
       text: async () => sampleHtml,
     } as unknown as Response);
-    jest.spyOn(require("node:dns/promises"), "lookup").mockResolvedValue({
-      address: "93.184.216.34",
-      family: 4,
-    });
+    jest.spyOn(require("node:dns/promises"), "lookup").mockResolvedValue([
+      {
+        address: "93.184.216.34",
+        family: 4,
+      },
+    ]);
   });
 
   afterEach(() => {

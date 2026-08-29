@@ -1,11 +1,6 @@
 export type LinkStatus = "WORKING" | "BROKEN" | "MISSING" | "DETECTED";
 
-export type SocialPlatform =
-  | "facebook"
-  | "instagram"
-  | "twitter"
-  | "linkedin"
-  | "youtube";
+export type SocialPlatform = "facebook" | "instagram" | "twitter" | "linkedin" | "youtube";
 
 export interface WhatsAppLink {
   url: string;
@@ -48,10 +43,7 @@ export interface EmailLink {
   suggestedFix?: string | null;
 }
 
-export type SecurityFindingType =
-  | "spam_content"
-  | "hidden_links"
-  | "suspicious_script";
+export type SecurityFindingType = "spam_content" | "hidden_links" | "suspicious_script";
 
 export interface SecurityFinding {
   type: SecurityFindingType;
@@ -93,6 +85,7 @@ export interface ScanResult {
     parseTime: number;
     totalTime: number;
   };
+  leadAuditData?: LeadAuditData;
 }
 
 export interface ScanFailure {
@@ -102,6 +95,55 @@ export interface ScanFailure {
     parseTime: number;
     totalTime: number;
   };
+}
+
+export interface EmailResult {
+  email: string;
+  source: "mailto" | "plain";
+}
+
+export interface PhoneResult {
+  phone: string;
+  source: "tel" | "plain";
+}
+
+export interface WhatsAppResult {
+  url: string;
+  phone: string | null;
+}
+
+export interface FormResult {
+  action: string;
+  actionResolved: string;
+  isExternal: boolean;
+  inputCount: number;
+  hasPassword: boolean;
+  hasFile: boolean;
+  method: string;
+}
+
+export interface AnalyticsResult {
+  hasGtag: boolean;
+  hasGtm: boolean;
+  hasFbq: boolean;
+  gtmIds: string[];
+  gaIds: string[];
+}
+
+export interface BrokenLinkResult {
+  url: string;
+  status: "BROKEN" | "TIMEOUT" | "ERROR" | "SSRF_BLOCKED";
+  statusCode?: number;
+  error?: string;
+}
+
+export interface LeadAuditData {
+  emails: EmailResult[];
+  phones: PhoneResult[];
+  whatsApp: WhatsAppResult[];
+  forms: FormResult[];
+  analytics: AnalyticsResult;
+  brokenLinks: BrokenLinkResult[];
 }
 
 export interface FetchResult {

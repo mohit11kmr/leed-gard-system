@@ -110,19 +110,21 @@ export async function assertPublicHost(hostname: string): Promise<void> {
   }
 
   try {
-    const first = await lookup(clean, { all: false });
-    const second = await lookup(clean, { all: false });
-    const addresses = [first.address, second.address];
+    // Resolve twice and validate EVERY address across both lookups. This keeps
+    // the anti-rebinding guard effective against DNS that flips to a private
+    // IP, while tolerating legitimate round-robin/CDN records (multiple public IPs).
+    const [first, second] = await Promise.all([
+      lookup(clean, { all: true }),
+      lookup(clean, { all: true }),
+    ]);
+    const addresses = [...new Set([...first, ...second].map((a) => a.address))];
+    if (addresses.length === 0) {
+      throw new ScanError("DNS_FAILED", `Unable to resolve hostname: ${clean}`);
+    }
     if (addresses.some((address) => isPrivateIpv4(address) || isPrivateIpv6(address))) {
       throw new ScanError(
         "SSRF_BLOCKED",
         "SSRF blocked: hostname resolves to an internal/private address.",
-      );
-    }
-    if (first.address !== second.address) {
-      throw new ScanError(
-        "SSRF_BLOCKED",
-        "SSRF blocked: hostname resolution changed between lookups.",
       );
     }
   } catch (err) {

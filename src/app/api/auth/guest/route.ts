@@ -21,7 +21,10 @@ export async function POST(req: NextRequest) {
         success: false,
         error: { code: "RATE_LIMITED", message: "Too many guest sessions. Try again later." },
       },
-      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds), ...corsHeaders(req) } }
+      {
+        status: 429,
+        headers: { "Retry-After": String(limit.retryAfterSeconds), ...corsHeaders(req) },
+      },
     );
   }
 
@@ -29,12 +32,15 @@ export async function POST(req: NextRequest) {
   const email = `guest_${nonce}@leadguard.local`;
   const password = `guest_${Math.random().toString(36).slice(2, 14)}`;
 
+  const guestExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
   const user = await prisma.user.create({
     data: {
       email,
       password: await hashPassword(password),
       name: "Guest",
       apiKey: generateApiKey(),
+      guestExpiresAt,
     },
   });
 
@@ -53,6 +59,6 @@ export async function POST(req: NextRequest) {
       user: { id: user.id, email: user.email, name: user.name, role: user.role },
       guest: true,
     },
-    { headers: corsHeaders(req) }
+    { headers: corsHeaders(req) },
   );
 }

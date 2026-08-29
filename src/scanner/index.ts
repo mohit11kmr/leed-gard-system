@@ -1,6 +1,7 @@
 import { cleanHtml } from "./cleanHtml";
 import { extractAllLinks } from "./extract";
 import { fetchHtml } from "./fetchHtml";
+import { runLeadAudit } from "./leadAudit";
 import {
   calculateOverallScore,
   calculateScore,
@@ -12,18 +13,10 @@ import {
 import { detectTracking, evaluateAdShield } from "./adshield";
 import { runSeoShield } from "./seoshield";
 import { runSecurityChecks } from "./security";
-import {
-  LinkStatus,
-  PillarResult,
-  ScanResult,
-} from "./types";
+import { LinkStatus, PillarResult, ScanResult } from "./types";
 import { validateAll } from "./validate";
 
-function pillar(
-  score: number,
-  issueCount: number,
-  summary: string
-): PillarResult {
+function pillar(score: number, issueCount: number, summary: string): PillarResult {
   return { score: Math.round(score), issueCount, summary };
 }
 
@@ -36,6 +29,9 @@ export async function performScan(url: string): Promise<ScanResult> {
   const raw = extractAllLinks(cleaned);
   const validated = validateAll(raw.whatsappLinks, raw.phoneLinks, raw.emailLinks);
   const security = await runSecurityChecks(html, cleaned, url);
+
+  // Lead Audit (non-blocking for scan score, but runs during scan)
+  const leadAuditData = await runLeadAudit(html, url);
 
   if (validated.whatsappLinks.length === 0) {
     validated.whatsappLinks.push({
@@ -50,15 +46,9 @@ export async function performScan(url: string): Promise<ScanResult> {
     });
   }
 
-  const brokenWhatsApp = validated.whatsappLinks.filter(
-    (l) => l.status !== "WORKING"
-  ).length;
-  const invalidPhone = validated.phoneLinks.filter(
-    (l) => l.status !== "WORKING"
-  ).length;
-  const invalidEmail = validated.emailLinks.filter(
-    (l) => l.status !== "WORKING"
-  ).length;
+  const brokenWhatsApp = validated.whatsappLinks.filter((l) => l.status !== "WORKING").length;
+  const invalidPhone = validated.phoneLinks.filter((l) => l.status !== "WORKING").length;
+  const invalidEmail = validated.emailLinks.filter((l) => l.status !== "WORKING").length;
 
   const { score: leadScore } = calculateScore({
     brokenWhatsAppCount: brokenWhatsApp,
@@ -75,17 +65,16 @@ export async function performScan(url: string): Promise<ScanResult> {
 
   const cyberScore = scoreCyberPillar(security.findings);
 
-const totalLinks =
+  const totalLinks =
     validated.whatsappLinks.length +
     validated.phoneLinks.length +
     validated.emailLinks.length +
     raw.reviewLinks.length +
     raw.socialLinks.length;
 
-const brokenLinks =
-    brokenWhatsApp + invalidPhone + invalidEmail;
+  const brokenLinks = brokenWhatsApp + invalidPhone + invalidEmail;
 
-const estimatedLoss = estimateMonthlyLoss(brokenLinks);
+  const estimatedLoss = estimateMonthlyLoss(brokenLinks);
 
   const workingLinks = totalLinks - brokenLinks;
 
@@ -109,21 +98,21 @@ const estimatedLoss = estimateMonthlyLoss(brokenLinks);
         brokenLinks,
         brokenLinks === 0
           ? "All contact channels healthy"
-          : `${brokenLinks} contact channel problem${brokenLinks === 1 ? "" : "s"} found`
+          : `${brokenLinks} contact channel problem${brokenLinks === 1 ? "" : "s"} found`,
       ),
       adshield: pillar(
         adScore,
         adFindings.length,
         adFindings.length === 0
           ? "Ad tracking detected and clean"
-          : adFindings[0].message.split(".")[0]
+          : adFindings[0].message.split(".")[0],
       ),
       seo: pillar(
         seoScore,
         seoFindings.filter((f) => f.severity !== "INFO").length,
         seoFindings.length === 0
           ? "No indexing risks detected"
-          : seoFindings[0].message.split(".")[0]
+          : seoFindings[0].message.split(".")[0],
       ),
       cyber: pillar(
         cyberScore,
@@ -132,7 +121,7 @@ const estimatedLoss = estimateMonthlyLoss(brokenLinks);
           ? "No compromise signs found"
           : security.status === "DANGER"
             ? "Strong compromise signals detected"
-            : "Warning signs detected"
+            : "Warning signs detected",
       ),
     },
     tracking,
@@ -149,14 +138,14 @@ const estimatedLoss = estimateMonthlyLoss(brokenLinks);
       brokenLinks,
     },
     summary: {
-      successRate:
-        totalLinks === 0 ? 100 : Math.round((workingLinks / totalLinks) * 100),
+      successRate: totalLinks === 0 ? 100 : Math.round((workingLinks / totalLinks) * 100),
     },
     performance: {
       fetchTime,
       parseTime,
       totalTime,
     },
+    leadAuditData,
   };
 
   return result;
@@ -184,6 +173,14 @@ export function emptyScanResult(): ScanResult {
     scanStats: { totalLinks: 0, workingLinks: 0, brokenLinks: 0 },
     summary: { successRate: 100 },
     performance: { fetchTime: 0, parseTime: 0, totalTime: 0 },
+    leadAuditData: {
+      emails: [],
+      phones: [],
+      whatsApp: [],
+      forms: [],
+      analytics: { hasGtag: false, hasGtm: false, hasFbq: false, gtmIds: [], gaIds: [] },
+      brokenLinks: [],
+    },
   };
 }
 

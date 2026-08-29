@@ -10,6 +10,10 @@ COPY prisma ./prisma
 RUN npm ci
 
 FROM base AS build
+# Build-time-only placeholders: src/lib/env.ts validates env at module load.
+# Real values are injected by docker-compose at runtime.
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder?schema=public" \
+    JWT_SECRET="build-time-placeholder-secret-32-chars-minimum!!"
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate && npm run build
@@ -23,8 +27,8 @@ RUN npm ci --omit=dev && npx prisma generate
 
 FROM node:22-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS=--max-old-space-size=512
-RUN apk add --no-cache openssl
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS=--max-old-space-size=512 CHROMIUM_PATH=/usr/bin/chromium-browser
+RUN apk add --no-cache openssl chromium
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/prisma ./prisma

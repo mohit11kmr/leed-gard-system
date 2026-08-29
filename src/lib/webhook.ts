@@ -1,4 +1,4 @@
-import { signHmac } from "./auth";
+import { signHmac, decryptSecret } from "./auth";
 import { logger } from "./logger";
 import { prisma } from "./prisma";
 
@@ -14,10 +14,28 @@ interface WebhookPayload {
   timestamp: string;
 }
 
+async function getWebhookSigningSecret(webhookId: string): Promise<string | null> {
+  const webhook = await prisma.webhook.findUnique({
+    where: { id: webhookId },
+    select: { secret: true, secretEncrypted: true },
+  });
+  if (!webhook) return null;
+  if (webhook.secretEncrypted) {
+    try {
+      return decryptSecret(webhook.secretEncrypted);
+    } catch {
+      logger.error("Failed to decrypt webhook secret", { webhookId });
+      return null;
+    }
+  }
+  // Fallback for legacy webhooks with plaintext secret
+  return webhook.secret;
+}
+
 async function sendOnce(
   webhookUrl: string,
   secret: string | null,
-  payload: WebhookPayload
+  payload: WebhookPayload,
 ): Promise<void> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -43,7 +61,6 @@ async function sendOnce(
 export async function deliverWebhook(params: {
   webhookId: string;
   webhookUrl: string;
-  secret: string | null;
   event: WebhookPayload["event"];
   scanId: string;
   url: string;
@@ -59,9 +76,11 @@ export async function deliverWebhook(params: {
     timestamp: new Date().toISOString(),
   };
 
+  const secret = await getWebhookSigningSecret(params.webhookId);
+
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      await sendOnce(params.webhookUrl, params.secret, payload);
+      await sendOnce(params.webhookUrl, secret, payload);
       await prisma.webhook.update({
         where: { id: params.webhookId },
         data: { lastTriggered: new Date() },
